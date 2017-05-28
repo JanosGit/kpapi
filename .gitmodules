@@ -1,0 +1,3 @@
+[submodule "simpleMIDI"]
+	path = simpleMIDI
+	url = https://github.com/JanosGit/simpleMIDI.git
