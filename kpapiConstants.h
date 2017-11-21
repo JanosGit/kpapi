@@ -29,25 +29,25 @@ namespace Kpa {
     
     namespace SysEx {
         
-        const uint8_t ManCode0 = 0x00;
-        const uint8_t ManCode1 = 0x20;
-        const uint8_t ManCode2 = 0x33;
-        const uint8_t PtProfiler = 0x02;
-        const uint8_t DeviceID = 0x7F;
-        const uint8_t Instance = 0x00;
+        const char ManCode0 = 0x00;
+        const char ManCode1 = 0x20;
+        const char ManCode2 = 0x33;
+        const char PtProfiler = 0x02;
+        const char DeviceID = 0x7F;
+        const char Instance = 0x00;
         
         namespace FunctionCode {
             
-            const uint8_t SingleParamChange = 0x01;
-            const uint8_t MultiParamChange = 0x02;
-            const uint8_t StringParam = 0x03;
-            const uint8_t Blob = 0x04;
-            const uint8_t ExtendedParamChange = 0x06;
-            const uint8_t ExtendedStringParam = 0x07;
-            const uint8_t SingleParamValueReq = 0x41;
-            const uint8_t MultiParamValueReq = 0x42;
-            const uint8_t StringParamReq = 0x43;
-            const uint8_t ExtendedStringParamReq = 0x47;
+            const char SingleParamChange = 0x01;
+            const char MultiParamChange = 0x02;
+            const char StringParam = 0x03;
+            const char Blob = 0x04;
+            const char ExtendedParamChange = 0x06;
+            const char ExtendedStringParam = 0x07;
+            const char SingleParamValueReq = 0x41;
+            const char MultiParamValueReq = 0x42;
+            const char StringParamReq = 0x43;
+            const char ExtendedStringParamReq = 0x47;
         }
         
         namespace Request {
@@ -56,34 +56,42 @@ namespace Kpa {
             const int StringRequestLength = 11;
             
             const int ActiveRigNameLength = StringRequestLength;
-            const uint8_t ActiveRigName[ActiveRigNameLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 1, SysExEnd};
+            const char ActiveRigName[ActiveRigNameLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 1, SimpleMIDI::SysExEnd};
             
             const int ActiveAmpNameLength = StringRequestLength;
-            const uint8_t ActiveAmpName[StringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 16, SysExEnd};
+            const char ActiveAmpName[StringRequestLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 16, SimpleMIDI::SysExEnd};
             
             const int ActiveAmpManufacturerNameLength = StringRequestLength;
-            const uint8_t ActiveAmpManufacturerName[StringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 21, SysExEnd};
+            const char ActiveAmpManufacturerName[StringRequestLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 21, SimpleMIDI::SysExEnd};
             
             const int ActiveAmpModelNameLength = StringRequestLength;
-            const uint8_t ActiveAmpModelName[StringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 24, SysExEnd};
+            const char ActiveAmpModelName[StringRequestLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 24, SimpleMIDI::SysExEnd};
             
             const int ActiveCabNameLength = StringRequestLength;
-            const uint8_t ActiveCabName[StringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 32, SysExEnd};
+            const char ActiveCabName[StringRequestLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 32, SimpleMIDI::SysExEnd};
             
             const int ActiveCabManufacturerNameLength = StringRequestLength;
-            const uint8_t ActiveCabManufacturerName[StringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 37, SysExEnd};
+            const char ActiveCabManufacturerName[StringRequestLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 37, SimpleMIDI::SysExEnd};
             
             const int ActiveCabModelNameLength = StringRequestLength;
-            const uint8_t ActiveCabModelName[StringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 42, SysExEnd};
+            const char ActiveCabModelName[StringRequestLength] = {SimpleMIDI::SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::StringParamReq, Instance, 0, 42, SimpleMIDI::SysExEnd};
             
             
             
             const int ExtendedStringRequestLength = 14;
             
             const int ActivePerformanceNameLength = ExtendedStringRequestLength;
-            uint8_t ActivePerformanceName[ActivePerformanceNameLength] = {SysExBegin, SysEx::ManCode0, SysEx::ManCode1, SysEx::ManCode2, SysEx::PtProfiler, SysEx::DeviceID, SysEx::FunctionCode::ExtendedStringParamReq, SysEx::Instance, 0, 0, 1, 0, 0, SysExEnd};
+            char ActivePerformanceName[ActivePerformanceNameLength] = {SimpleMIDI::SysExBegin, SysEx::ManCode0, SysEx::ManCode1, SysEx::ManCode2, SysEx::PtProfiler, SysEx::DeviceID, SysEx::FunctionCode::ExtendedStringParamReq, SysEx::Instance, 0, 0, 1, 0, 0, SimpleMIDI::SysExEnd};
 
         }
+        
+    }
+    
+    namespace ControlChange {
+        
+        const uint8_t WahPedal = 1;
+        
+        const uint8_t PitchPedal = 4;
         
     }
     
