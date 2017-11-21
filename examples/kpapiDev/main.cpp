@@ -24,9 +24,13 @@ void controllerNr2ints (uint32_t controllerNr){
 int main(int argc, const char * argv[]) {
  
     
-    const std::vector<simpleMIDI::HardwareRessource> connectedDevices = searchMIDIDevices();
+    std::vector<SimpleMIDI::HardwareResource> connectedDevices = searchMIDIDevices();
+
+    for (auto &dev : connectedDevices) {
+        std::cout << dev.deviceName << std::endl;
+    }
     
-    KemperProfilingAmp kemperProfilingAmp (&connectedDevices[2]);
+    KemperProfilingAmp kemperProfilingAmp (connectedDevices[1]);
     
     std::cout << kemperProfilingAmp.getActivePerformanceName() << std::endl;
     
