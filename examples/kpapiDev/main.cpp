@@ -10,17 +10,6 @@
 
 #include "../../kpapi.h"
 
-void controllerNr2ints (uint32_t controllerNr){
-    uint8_t controllerNrEncoded[5];
-    controllerNrEncoded[0]=controllerNr>>28;
-    controllerNrEncoded[1]=(controllerNr>>21) & 0b01111111;
-    controllerNrEncoded[2]=(controllerNr>>14) & 0b01111111;
-    controllerNrEncoded[3]=(controllerNr>>7) & 0b01111111;
-    controllerNrEncoded[4]=controllerNr & 0b01111111;
-    
-    std::cout << (int)controllerNrEncoded[0] << ", " << (int)controllerNrEncoded[1] << ", " << (int)controllerNrEncoded[2] << ", " << (int)controllerNrEncoded[3] << ", " << (int)controllerNrEncoded[4] << ", " << std::endl;
-}
-
 int main(int argc, const char * argv[]) {
  
     
@@ -30,9 +19,11 @@ int main(int argc, const char * argv[]) {
         std::cout << dev.deviceName << std::endl;
     }
     
-    KemperProfilingAmp kemperProfilingAmp (connectedDevices[1]);
+    KemperProfilingAmp kemperProfilingAmp (connectedDevices[2]);
     
-    std::cout << kemperProfilingAmp.getActivePerformanceName() << std::endl;
+    std::cout << kemperProfilingAmp.getRigName (Kpa::Rig3) << std::endl;
+
+    kemperProfilingAmp.setTapTempo (500);
     
     return 0;
 }

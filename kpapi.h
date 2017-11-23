@@ -35,9 +35,58 @@ public:
 #endif
 
 
-    KemperProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource) : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource) {
+    KemperProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource) : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
+                                                                           stringResponseManager (*this) {
         
     };
+
+#ifdef SIMPLE_MIDI_MULTITHREADED
+    ~KemperProfilingAmp() {
+        if (midiClockGenerator != nullptr)
+            delete midiClockGenerator;
+    };
+#endif
+
+    // ---------------- Tempo ---------------------------------------------------
+#ifdef SIMPLE_MIDI_MULTITHREADED
+    /**
+     * Starts a new thread that constantly sends out a midi clock signal to keep the amp in sync.
+     * May be much more stable than setTapTempo but will consume more ressources.
+     */
+    void startExternalMIDIClocking (uint64_t quarterNoteIntervalInMilliseconds) {
+        if (midiClockGenerator == nullptr)
+            midiClockGenerator = new MIDIClockGenerator (*this);
+
+        midiClockGenerator->setIntervall (quarterNoteIntervalInMilliseconds);
+    }
+
+    /**
+     * Stops the MIDI clock and optionally deletes the thread. If the thread is kept alive the clock will
+     * restart faster if startExternalMIDIClocking is called again
+     */
+    void stopExternalMIDIClocking(bool deleteThread = false) {
+        midiClockGenerator->stop();
+
+        if (deleteThread) {
+            delete midiClockGenerator;
+            midiClockGenerator = nullptr;
+        }
+    }
+
+    /**
+     * Sends out two midi clock ticks according to the interval in milliseconds passed. Might not be as stable as
+     * the external midi clock generator functions but much more lightweight.
+     */
+    void setTapTempo (uint64_t quarterNoteIntervalInMilliseconds) {
+        quarterNoteIntervalInMilliseconds *= 1000000; // actually nanoseconds now
+        quarterNoteIntervalInMilliseconds /= 24; // scaled to midi beat clock intervals
+        auto timepoint = std::chrono::system_clock::now() + std::chrono::nanoseconds (quarterNoteIntervalInMilliseconds);
+        sendMIDIClockTick();
+        std::this_thread::sleep_until (timepoint);
+        sendMIDIClockTick();
+    }
+#else
+#endif
     // ---------------- Select Rigs and performances ----------------------------
     
     /** Select a rig in the current performance */
@@ -59,10 +108,7 @@ public:
     returnStringType getActiveRigName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveRigName, SysEx::Request::ActiveRigNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        return stringBuffer;
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -71,9 +117,7 @@ public:
     returnStringType getActiveAmpName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveAmpName, SysEx::Request::ActiveAmpNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -82,9 +126,7 @@ public:
     returnStringType getActiveAmpManufacturerName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveAmpManufacturerName, SysEx::Request::ActiveAmpManufacturerNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -93,9 +135,7 @@ public:
     returnStringType getActiveAmpModelName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveAmpModelName, SysEx::Request::ActiveAmpModelNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -104,9 +144,7 @@ public:
     returnStringType getActiveCabName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveCabName, SysEx::Request::ActiveCabNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -115,9 +153,7 @@ public:
     returnStringType getActiveCabManufacturerName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveCabManufacturerName, SysEx::Request::ActiveCabManufacturerNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -126,9 +162,7 @@ public:
     returnStringType getActiveCabModelName () {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveCabModelName, SysEx::Request::ActiveCabModelNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -137,9 +171,7 @@ public:
     returnStringType getActivePerformanceName() {
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActivePerformanceName, SysEx::Request::ActivePerformanceNameLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -152,9 +184,7 @@ public:
         char rigNameReq[SysEx::Request::ExtendedStringRequestLength] = {SysExBegin, SysEx::ManCode0, SysEx::ManCode1, SysEx::ManCode2, SysEx::PtProfiler, SysEx::DeviceID, SysEx::FunctionCode::ExtendedStringParamReq, SysEx::Instance, 0, 0, 1, 0, rigControllerLSB, SysExEnd};
         
         sendSysEx (rigNameReq, SysEx::Request::ExtendedStringRequestLength);
-        auto result = stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-        if (result == ResponseMessageManager<char>::ErrorCode::timeout)
-            checkConnectionState();
+        stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
         return stringBuffer;
     }
@@ -174,8 +204,89 @@ private:
             timeout = 1,
             stillWaitingForPrevious = 2
         };
+#ifdef SIMPLE_MIDI_ARDUINO
 
-        ResponseMessageManager() : waitingForResponse (false) {
+
+        ResponseMessageManager (KemperProfilingAmp &outerClass) {
+
+        }
+
+        /**
+         * This is called by the function that wants to receive a response after having sent out some kind of request.
+         * It blocks until the response message was received and stored in the buffer provided by the caller.
+         * If a timeout appears, all response buffer fields will be filled with zeros - so in case it's a C string char
+         * array, this will be interpreted as an empty string while in case of integer or float values, this will be the
+         * numerical value 0.
+         * @param responseBuffer Pointer to an array that's filled with the response data.
+         * @param responseBufferSize Size of the array to fill (number of array elements, NOT size in Bytes!).
+         * @param timeoutInMilliseconds Time to wait for a response.
+         *
+         * @return errorCode::success if successful, errorCode::timeout if a timeout occured
+         *         or errorCode::stillWaitingForPrevious if it's still waiting for a previous message.
+         */
+        ErrorCode waitingForResponseOrTimeout (T *responseTargetBuffer, int responseTargetBufferSize, int timeoutInMilliseconds = 500) {
+            // will this ever happen???
+            if (waitingForResponse)
+                return stillWaitingForPrevious;
+
+            unsigned long timeoutTimepoint = timeoutInMilliseconds + millis();
+
+            this->responseTargetBuffer = responseTargetBuffer;
+            this->responseTargetBufferSize = responseTargetBufferSize;
+
+            receivedResponse = false;
+            waitingForResponse = true;
+
+            while (millis() < timeoutTimepoint) {
+                _outerClass.receive();
+                if (receivedResponse) {
+                    waitingForResponse = false;
+                    return success;
+                }
+            }
+
+            waitingForResponse = false;
+            return timeout;
+        }
+
+/**
+         * This is called by the corresponding MIDI handler when a speficic kind of message was received. If no
+         * request was sent out before, it returns false and does nothing, otherwise it copies the elements from
+         * the source buffer to the target buffer provided by the caller of waitingForResponseOrTimeout.
+         * @param responseBuffer The buffer provided by the MIDI handler.
+         * @param responseBufferSize The number of elemets to copy to the target buffer (number of array elements, NOT size in Bytes!).
+         * @return false if no thread was waiting for a response, true if the response could have been delivered.
+         */
+        bool receivedResponse (const T *responseSourceBuffer, int responseSourceBufferSize) {
+            if (waitingForResponse) {
+
+                if (responseSourceBufferSize > responseTargetBufferSize)
+                    responseSourceBufferSize = responseTargetBufferSize;
+                memcpy (responseTargetBuffer, responseSourceBuffer, responseSourceBufferSize * sizeof (T));
+                receivedResponse = true;
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Returns true if waitingForResponseOrTimeout was called before and no response data
+         * was processed until now.
+         */
+        bool isWaitingForResponse() {
+            return waitingForResponse;
+        }
+
+    private:
+        KemperProfilingAmp &_outerClass;
+        bool waitingForResponse = false;
+        bool receivedResponse = false;
+
+        T *responseTargetBuffer = nullptr;
+        int responseTargetBufferSize = 0;
+
+#else
+        ResponseMessageManager (KemperProfilingAmp &outerClass) : _outerClass (outerClass), waitingForResponse (false) {
 
         }
 
@@ -192,7 +303,7 @@ private:
          * @return errorCode::success if successful, errorCode::timeout if a timeout occured
          *         or errorCode::stillWaitingForPrevious if it's still waiting for a previous message.
          */
-        ErrorCode waitingForResponseOrTimeout (T *responseTargetBuffer, int responseTargetBufferSize, int timeoutInMilliseconds = 1000) {
+        ErrorCode waitingForResponseOrTimeout (T *responseTargetBuffer, int responseTargetBufferSize, int timeoutInMilliseconds = 500) {
 
             // check if a previous caller still waits for a response
             if (waitingForResponse.load())
@@ -217,6 +328,7 @@ private:
                     waitingForResponse.store (false);
                     // clear the buffer completely in this case
                     std::fill (responseTargetBuffer, responseTargetBuffer + responseTargetBufferSize, 0);
+                    _outerClass.checkConnectionState ();
                     return timeout;
                 }
             }
@@ -265,6 +377,8 @@ private:
 
 
     private:
+        KemperProfilingAmp &_outerClass;
+
         std::mutex responseTargetBufferMutex;
         std::condition_variable cv;
 
@@ -272,9 +386,14 @@ private:
         bool responseTargetBufferFilled = false;
         T *responseTargetBuffer = nullptr;
         int responseTargetBufferSize = 0;
+#endif
     };
 
     ResponseMessageManager<char> stringResponseManager;
+
+#ifdef SIMPLE_MIDI_MULTITHREADED
+    MIDIClockGenerator *midiClockGenerator = nullptr;
+#endif
 
     void checkConnectionState() {
         std::cerr << "Still connected?" << std::endl;
