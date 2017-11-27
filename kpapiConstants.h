@@ -10,9 +10,6 @@
 #define kpapiConstants_h
 
 namespace Kpa {
-
-    // when a midi request is sent, this is the time interval in miliseconds the send thread polls the "recievedNewMIDI..." flag
-    const int waitForStringResponseInterval = 50;
     
     typedef enum : uint8_t {
         Rig1 = 50,
@@ -25,6 +22,16 @@ namespace Kpa {
     // convert a rig indexed by 0 - 4 to a RigNr
     inline RigNr toRigNr (uint8_t rig) {
         return (RigNr) (rig + 50);
+    }
+
+    namespace ControlChange {
+
+        const uint8_t WahPedal = 1;
+
+        const uint8_t PitchPedal = 4;
+
+        const uint8_t TapTempo = 50; // Value 1 = Down, Value 0 = Up
+
     }
     
     namespace SysEx {
@@ -86,15 +93,7 @@ namespace Kpa {
         }
         
     }
-    
-    namespace ControlChange {
-        
-        const uint8_t WahPedal = 1;
-        
-        const uint8_t PitchPedal = 4;
-        
-    }
-    
+
 
 }
 

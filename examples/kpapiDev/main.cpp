@@ -23,7 +23,7 @@ int main(int argc, const char * argv[]) {
     
     std::cout << kemperProfilingAmp.getRigName (Kpa::Rig3) << std::endl;
 
-    kemperProfilingAmp.setTapTempo (500);
+    kemperProfilingAmp.setTempo (500);
     
     return 0;
 }

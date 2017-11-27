@@ -37,7 +37,11 @@ public:
 
     KemperProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource) : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
                                                                            stringResponseManager (*this) {
-        
+#ifdef SIMPLE_MIDI_ARDUINO
+        timePointLastTap = 0;
+#else
+        timePointLastTap = std::chrono::system_clock::now();
+#endif
     };
 
 #ifdef SIMPLE_MIDI_MULTITHREADED
@@ -52,6 +56,7 @@ public:
     /**
      * Starts a new thread that constantly sends out a midi clock signal to keep the amp in sync.
      * May be much more stable than setTapTempo but will consume more ressources.
+     * !! Not available on single threaded environments like Arduino !!
      */
     void startExternalMIDIClocking (uint64_t quarterNoteIntervalInMilliseconds) {
         if (midiClockGenerator == nullptr)
@@ -62,7 +67,9 @@ public:
 
     /**
      * Stops the MIDI clock and optionally deletes the thread. If the thread is kept alive the clock will
-     * restart faster if startExternalMIDIClocking is called again
+     * restart faster if startExternalMIDIClocking is called again.
+     *
+     * @see startExternalMIDIClocking
      */
     void stopExternalMIDIClocking(bool deleteThread = false) {
         midiClockGenerator->stop();
@@ -73,11 +80,54 @@ public:
         }
     }
 
+#endif
+
+#ifdef SIMPLE_MIDI_ARDUINO
+
     /**
      * Sends out two midi clock ticks according to the interval in milliseconds passed. Might not be as stable as
      * the external midi clock generator functions but much more lightweight.
      */
-    void setTapTempo (uint64_t quarterNoteIntervalInMilliseconds) {
+    void setTempo (uint64_t quarterNoteIntervalInMilliseconds) {
+        quarterNoteIntervalInMilliseconds /= 24; // scaled to midi beat clock intervals
+        quarterNoteIntervalInMilliseconds += millis();
+        sendMIDIClockTick();
+
+        while (quarterNoteIntervalInMilliseconds < millis());
+
+        sendMIDIClockTick();
+    }
+
+private:
+    long timePointLastTap;
+
+public:
+
+    /**
+     * Sends a Tap Down event. If no tapUp was sent after 3 seconds, the amp will activate the beat scanner.
+     * @return The time in milliseconds since the last tap down. If it's more than 3 seconds ago since the last
+     *         tap down occured it will return -1
+     */
+    int16_t tapDown() {
+        sendControlChange (ControlChange::TapTempo, 1);
+
+        long timeNow = millis;
+        long timeDiff = timeNow - timePointLastTap;
+        timePointLastTap = timeNow;
+
+        if (timeDiff < 3000)
+            return timeDiff;
+
+        return -1;
+    }
+
+#else
+
+    /**
+     * Sends out two midi clock ticks according to the interval in milliseconds passed. Might not be as stable as
+     * the external midi clock generator functions but much more lightweight.
+     */
+    void setTempo (uint64_t quarterNoteIntervalInMilliseconds) {
         quarterNoteIntervalInMilliseconds *= 1000000; // actually nanoseconds now
         quarterNoteIntervalInMilliseconds /= 24; // scaled to midi beat clock intervals
         auto timepoint = std::chrono::system_clock::now() + std::chrono::nanoseconds (quarterNoteIntervalInMilliseconds);
@@ -85,8 +135,41 @@ public:
         std::this_thread::sleep_until (timepoint);
         sendMIDIClockTick();
     }
-#else
+
+private:
+    std::chrono::time_point<std::chrono::system_clock> timePointLastTap;
+
+public:
+
+    /**
+     * Sends a Tap Down event. If no tapUp was sent after 3 seconds, the amp will activate the beat scanner.
+     * @return The time in milliseconds since the last tap down. If it's more than 3 seconds ago since the last
+     *         tap down occured it will return -1
+     */
+    int16_t tapDown() {
+        sendControlChange (ControlChange::TapTempo, 1);
+
+        auto timeNow = std::chrono::system_clock::now();
+        auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds> (timeNow - timePointLastTap);
+        timePointLastTap = timeNow;
+
+        auto timeDiffMs = timeDiff.count();
+
+        if (timeDiffMs < 3000)
+            return timeDiffMs;
+
+        return -1;
+    }
+
 #endif
+
+    /**
+     * Sends a Tap Up event.
+     * @see tapDown
+     */
+    void tapUp() {
+        sendControlChange (ControlChange::TapTempo, 0);
+    }
     // ---------------- Select Rigs and performances ----------------------------
     
     /** Select a rig in the current performance */
@@ -193,7 +276,7 @@ public:
     
     
 private:
-
+// ======== Managing bidirectional communication=================
     template<typename T>
     class ResponseMessageManager {
 
