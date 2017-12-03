@@ -9,13 +9,18 @@
 #ifndef kpapi_h
 #define kpapi_h
 
-#include "simpleMIDI/simpleMIDI.h"
-#include "kpapiConstants.h"
+#ifdef ARDUINO
+#include <simpleMIDI.h>
 
+#else
+#include "simpleMIDI/simpleMIDI.h"
 #include <thread>
 #include <chrono>
+#endif
 
-using namespace Kpa;
+#include "kpapiConstants.h"
+
+
 
 class KemperProfilingAmp : private SimpleMIDI::PlatformSpecificImplementation {
     
@@ -43,6 +48,15 @@ public:
         timePointLastTap = std::chrono::system_clock::now();
 #endif
     };
+
+#ifdef SIMPLE_MIDI_ARDUINO
+    /**
+     * On Arduino the MIDI connection needs some initialization in the setup routine
+     */
+    void beginMIDI() {
+        begin();
+    }
+#endif
 
 #ifdef SIMPLE_MIDI_MULTITHREADED
     ~KemperProfilingAmp() {
@@ -586,7 +600,7 @@ private:
 #endif
 
     void checkConnectionState() {
-        std::cerr << "Still connected?" << std::endl;
+        //std::cerr << "Still connected?" << std::endl;
     }
     
 // ======== SimpleMIDI meber functions ========================

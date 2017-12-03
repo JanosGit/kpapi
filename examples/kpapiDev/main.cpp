@@ -6,6 +6,7 @@
 //  Copyright © 2017 Janos Buttgereit. All rights reserved.
 //
 
+#ifndef ARDUINO
 #include <iostream>
 
 #include "../../kpapi.h"
@@ -27,3 +28,4 @@ int main(int argc, const char * argv[]) {
     
     return 0;
 }
+#endif
