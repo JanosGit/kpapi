@@ -176,7 +176,59 @@ public:
     void selectRig (RigNr rig) {
         sendControlChange (rig, 1);
     }
-    
+
+    /**
+     * Preselect a Performance. You need to send selectRig afterwards to apply the
+     * preselection or the amp will leave the preselection mode after a few seconds.
+     * @param performanceIdx Should be between 0 and 124
+     */
+    void preselectPerformance (uint8_t performanceIdx) {
+        sendControlChange (ControlChange ::PerformancePreselect, performanceIdx);
+    }
+
+    /** Select a perfomance and a rig */
+    void selectPerformanceAndRig (uint8_t performanceIdx, RigNr rig) {
+        sendControlChange (ControlChange ::PerformancePreselect, performanceIdx);
+        sendControlChange (rig, 1);
+    }
+
+    /**
+     * Selects the next performance. If scroll performance up was sent before, this
+     * will stop scrolling and select the current performance.
+     */
+    void selectNextPerformance() {
+        sendControlChange (ControlChange::PerformanceUp, 0);
+    }
+
+    /**
+     * After sending this command, the amp will start scrolling up through the performances
+     * after a short break. When sending selectNextPerformance, the scrolling will
+     * stop at that point
+     *
+     * @see selectNextPerformance
+     */
+    void startScrollingPerformancesUpwards() {
+        sendControlChange (ControlChange::PerformanceUp, 1);
+    }
+
+    /**
+     * Selects the previous performance. If scroll performance up was sent before, this
+     * will stop scrolling and select the current performance.
+     */
+    void selectPreviousPerformance() {
+        sendControlChange (ControlChange::PerformanceDown, 0);
+    }
+
+    /**
+     * After sending this command, the amp will start scrolling down through the
+     * performances after a short break. When sending selectNextPerformance, the scrolling
+     * will stop at that point
+     *
+     * @see selectNextPerformance
+     */
+    void startScrollingPerformancesBackwards() {
+        sendControlChange (ControlChange::PerformanceDown, 1);
+    }
     
     // ---------------- Control the effect chain --------------------------------
     
@@ -184,7 +236,62 @@ public:
     void setWah (uint8_t) {
         
     }
-    
+
+    /** Toggles stomp A between on and off state */
+    void toggleStompA() {
+        sendControlChange (ControlChange::ToggleStompA, 0);
+    }
+
+    /** Toggles stomp B between on and off state */
+    void toggleStompB() {
+        sendControlChange (ControlChange::ToggleStompB, 0);
+    }
+
+    /** Toggles stomp C between on and off state */
+    void toggleStompC() {
+        sendControlChange (ControlChange::ToggleStompC, 0);
+    }
+
+    /** Toggles stomp D between on and off state */
+    void toggleStompD() {
+        sendControlChange (ControlChange::ToggleStompD, 0);
+    }
+
+    /** Toggles stomp X between on and off state */
+    void toggleStompX() {
+        sendControlChange (ControlChange::ToggleStompX, 0);
+    }
+
+    /** Toggles stomp Mod between on and off state */
+    void toggleMod() {
+        sendControlChange (ControlChange::ToggleStompMod, 0);
+    }
+
+
+    /** Toggles stomp Mod between on and off state */
+    void toggleMod() {
+        sendControlChange (ControlChange::ToggleStompMod, 0);
+    }
+
+    /** Toggles stomp Delay between on and off state. Set withDlyTail to true
+     * to allow the delay tail to spill over after switching off the stomp.
+     */
+    void toggleDelay (bool withDlyTail = true) {
+        if (withDlyTail)
+            sendControlChange (ControlChange::ToggleStompDlyWithTail, 0);
+        else
+            sendControlChange (ControlChange::ToggleStompDly, 0);
+    }
+
+    /** Toggles stomp Reverb between on and off state. Set withReverbTail to true
+     * to allow the reverb tail to spill over after switching off the stomp.
+     */
+    void toggleDelay (bool withReverbTail = true) {
+        if (withReverbTail)
+            sendControlChange (ControlChange:;ToggleStompReverbWithTail, 0);
+        else
+            sendControlChange (ControlChange::ToggleStompReverb, 0);
+    }
     // ---------------- Getting string parameters for the active rig ------------
     
     /** Returns the name of the currently active rig */

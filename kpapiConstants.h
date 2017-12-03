@@ -11,28 +11,71 @@
 
 namespace Kpa {
     
-    typedef enum : uint8_t {
+    enum RigNr : uint8_t {
         Rig1 = 50,
         Rig2 = 51,
         Rig3 = 52,
         Rig4 = 53,
         Rig5 = 54
-    } RigNr;
+    };
     
     // convert a rig indexed by 0 - 4 to a RigNr
     inline RigNr toRigNr (uint8_t rig) {
         return (RigNr) (rig + 50);
     }
 
+    enum ControlChange : uint8_t {
+        WahPedal = 1,
+        PitchPedal = 4,
+
+        // Stomps
+        ToggleAllStomps = 16,
+        ToggleStompA = 17,
+        ToggleStompB = 18,
+        ToggleStompC = 19,
+        ToggleStompD = 20,
+        ToggleStompX = 22,
+        ToggleStompMod = 24,
+        ToggleStompDly = 26,
+        ToggleStompDlyWithTail = 27,
+        ToggleStompReverb = 28,
+        ToggleStompReverbWithTail = 29
+
+        TapTempo = 30, // Value 1 = Down, Value 0 = Up
+        Tuner = 31, // Value 1 = Show, 0 = Hide
+        RotarySpeed = 33, // Value 0 = Slow, Value 1 = Fast
+        DelayInfFeedback = 34,
+        DelayHold = 35,
+
+        // Performances and Slots
+        PerformancePreselect = 47, // Value 0 - 124 = Performance to preselect
+        PerformanceUp = 48, // Value 0 = simply up, Value 1 = start scrolling (stop with 0)
+        PerformanceDown = 49, // just as PerformanceUp
+
+        // Effect parameters
+        DelayMix = 68,
+        DelayFeedback = 69,
+        ReverbMix = 70,
+        ReverbTime = 71,
+        AmpGain = 72,
+        GlobalMonitorVolume = 73
+    };
+
+    /*
     namespace ControlChange {
 
-        const uint8_t WahPedal = 1;
+        const uint8_t WahPedal = 1; // really??
 
         const uint8_t PitchPedal = 4;
 
-        const uint8_t TapTempo = 50; // Value 1 = Down, Value 0 = Up
+        // Stomps
+        // todo: implement
+        const uint8_t toggleAllStomps =
+
+        const uint8_t TapTempo = 50;
 
     }
+     */
     
     namespace SysEx {
         
