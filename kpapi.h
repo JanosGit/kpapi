@@ -20,7 +20,7 @@
 
 #include "kpapiConstants.h"
 
-
+using namespace Kpa;
 
 class KemperProfilingAmp : private SimpleMIDI::PlatformSpecificImplementation {
     
@@ -39,15 +39,23 @@ public:
     #define KPAPI_TEMP_STRING_BUFFER_IF_NEEDED char stringBuffer[stringBufferLength];
 #endif
 
+#ifdef SIMPLE_MIDI_ARDUINO
+    KemperProfilingAmp (HardwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial), stringResponseManager (*this) {
+        timePointLastTap = 0;
+    };
+    
+#ifndef SIMPLE_MIDI_NO_SOFT_SERIAL
+    KemperProfilingAmp (SoftwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial), stringResponseManager (*this) {
+        timePointLastTap = 0;
+    };
+#endif
+#else
 
     KemperProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource) : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
                                                                            stringResponseManager (*this) {
-#ifdef SIMPLE_MIDI_ARDUINO
-        timePointLastTap = 0;
-#else
         timePointLastTap = std::chrono::system_clock::now();
-#endif
     };
+#endif
 
 #ifdef SIMPLE_MIDI_ARDUINO
     /**
@@ -281,28 +289,12 @@ public:
         sendControlChange (ControlChange::ToggleStompMod, 0);
     }
 
-
-    /** Toggles stomp Mod between on and off state */
-    void toggleMod() {
-        sendControlChange (ControlChange::ToggleStompMod, 0);
-    }
-
-    /** Toggles stomp Delay between on and off state. Set withDlyTail to true
-     * to allow the delay tail to spill over after switching off the stomp.
-     */
-    void toggleDelay (bool withDlyTail = true) {
-        if (withDlyTail)
-            sendControlChange (ControlChange::ToggleStompDlyWithTail, 0);
-        else
-            sendControlChange (ControlChange::ToggleStompDly, 0);
-    }
-
     /** Toggles stomp Reverb between on and off state. Set withReverbTail to true
      * to allow the reverb tail to spill over after switching off the stomp.
      */
     void toggleDelay (bool withReverbTail = true) {
         if (withReverbTail)
-            sendControlChange (ControlChange:;ToggleStompReverbWithTail, 0);
+            sendControlChange (ControlChange::ToggleStompReverbWithTail, 0);
         else
             sendControlChange (ControlChange::ToggleStompReverb, 0);
     }
@@ -438,12 +430,12 @@ private:
             this->responseTargetBuffer = responseTargetBuffer;
             this->responseTargetBufferSize = responseTargetBufferSize;
 
-            receivedResponse = false;
+            hasReceivedResponse = false;
             waitingForResponse = true;
 
             while (millis() < timeoutTimepoint) {
                 _outerClass.receive();
-                if (receivedResponse) {
+                if (hasReceivedResponse) {
                     waitingForResponse = false;
                     return success;
                 }
@@ -467,7 +459,7 @@ private:
                 if (responseSourceBufferSize > responseTargetBufferSize)
                     responseSourceBufferSize = responseTargetBufferSize;
                 memcpy (responseTargetBuffer, responseSourceBuffer, responseSourceBufferSize * sizeof (T));
-                receivedResponse = true;
+                hasReceivedResponse = true;
                 return true;
             }
             return false;
@@ -484,7 +476,7 @@ private:
     private:
         KemperProfilingAmp &_outerClass;
         bool waitingForResponse = false;
-        bool receivedResponse = false;
+        bool hasReceivedResponse = false;
 
         T *responseTargetBuffer = nullptr;
         int responseTargetBufferSize = 0;

@@ -39,7 +39,7 @@ namespace Kpa {
         ToggleStompDly = 26,
         ToggleStompDlyWithTail = 27,
         ToggleStompReverb = 28,
-        ToggleStompReverbWithTail = 29
+        ToggleStompReverbWithTail = 29,
 
         TapTempo = 30, // Value 1 = Down, Value 0 = Up
         Tuner = 31, // Value 1 = Show, 0 = Hide
