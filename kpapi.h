@@ -9,16 +9,18 @@
 #ifndef kpapi_h
 #define kpapi_h
 
-#ifdef ARDUINO
-#include <simpleMIDI.h>
-
-#else
 #include "simpleMIDI/simpleMIDI.h"
+
+#ifndef SIMPLE_MIDI_ARDUINO
 #include <thread>
 #include <chrono>
 #endif
 
 #include "kpapiConstants.h"
+/*
+#include <LiquidCrystal.h>
+LiquidCrystal lcd (8, 9, 10, 11, 12, 13);
+ */
 
 using namespace Kpa;
 
@@ -43,12 +45,12 @@ public:
     KemperProfilingAmp (HardwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial), stringResponseManager (*this) {
         timePointLastTap = 0;
     };
-    
+   /*
 #ifndef SIMPLE_MIDI_NO_SOFT_SERIAL
     KemperProfilingAmp (SoftwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial), stringResponseManager (*this) {
         timePointLastTap = 0;
     };
-#endif
+#endif*/
 #else
 
     KemperProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource) : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
@@ -63,6 +65,10 @@ public:
      */
     void beginMIDI() {
         begin();
+    }
+
+    void receiveMIDI() {
+        receive();
     }
 #endif
 
@@ -133,8 +139,8 @@ public:
     int16_t tapDown() {
         sendControlChange (ControlChange::TapTempo, 1);
 
-        long timeNow = millis;
-        long timeDiff = timeNow - timePointLastTap;
+        unsigned long timeNow = millis();
+        unsigned long timeDiff = timeNow - timePointLastTap;
         timePointLastTap = timeNow;
 
         if (timeDiff < 3000)
@@ -302,6 +308,7 @@ public:
     
     /** Returns the name of the currently active rig */
     returnStringType getActiveRigName () {
+        //lcd.print("Rigname ");
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveRigName, SysEx::Request::ActiveRigNameLength);
         stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
@@ -403,7 +410,7 @@ private:
 #ifdef SIMPLE_MIDI_ARDUINO
 
 
-        ResponseMessageManager (KemperProfilingAmp &outerClass) {
+        ResponseMessageManager (KemperProfilingAmp &outerClass) : _outerClass (outerClass){
 
         }
 
@@ -454,6 +461,7 @@ private:
          * @return false if no thread was waiting for a response, true if the response could have been delivered.
          */
         bool receivedResponse (const T *responseSourceBuffer, int responseSourceBufferSize) {
+
             if (waitingForResponse) {
 
                 if (responseSourceBufferSize > responseTargetBufferSize)
@@ -478,7 +486,7 @@ private:
         bool waitingForResponse = false;
         bool hasReceivedResponse = false;
 
-        T *responseTargetBuffer = nullptr;
+        T *responseTargetBuffer = NULL;
         int responseTargetBufferSize = 0;
 
 #else

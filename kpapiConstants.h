@@ -24,6 +24,8 @@ namespace Kpa {
         return (RigNr) (rig + 50);
     }
 
+#ifndef SIMPLE_MIDI_ARDUINO
+    // seems like some arduino compatible compilers don't like these enums
     enum ControlChange : uint8_t {
         WahPedal = 1,
         PitchPedal = 4,
@@ -61,21 +63,46 @@ namespace Kpa {
         GlobalMonitorVolume = 73
     };
 
-    /*
+
+#else
     namespace ControlChange {
 
-        const uint8_t WahPedal = 1; // really??
+            static const uint8_t WahPedal = 1;
+            static const uint8_t PitchPedal = 4;
 
-        const uint8_t PitchPedal = 4;
+            // Stomps
+            static const uint8_t ToggleAllStomps = 16;
+            static const uint8_t ToggleStompA = 17;
+            static const uint8_t ToggleStompB = 18;
+            static const uint8_t ToggleStompC = 19;
+            static const uint8_t ToggleStompD = 20;
+            static const uint8_t ToggleStompX = 22;
+            static const uint8_t ToggleStompMod = 24;
+            static const uint8_t ToggleStompDly = 26;
+            static const uint8_t ToggleStompDlyWithTail = 27;
+            static const uint8_t ToggleStompReverb = 28;
+            static const uint8_t ToggleStompReverbWithTail = 29;
 
-        // Stomps
-        // todo: implement
-        const uint8_t toggleAllStomps =
+            static const uint8_t TapTempo = 30; // Value 1 = Down, Value 0 = Up
+            static const uint8_t Tuner = 31; // Value 1 = Show, 0 = Hide
+            static const uint8_t RotarySpeed = 33; // Value 0 = Slow, Value 1 = Fast
+            static const uint8_t DelayInfFeedback = 34;
+            static const uint8_t DelayHold = 35;
 
-        const uint8_t TapTempo = 50;
+            // Performances and Slots
+            static const uint8_t PerformancePreselect = 47; // Value 0 - 124 = Performance to preselect
+            static const uint8_t PerformanceUp = 48; // Value 0 = simply up, Value 1 = start scrolling (stop with 0)
+            static const uint8_t PerformanceDown = 49; // just as PerformanceUp
 
+            // Effect parameters
+            static const uint8_t DelayMix = 68;
+            static const uint8_t DelayFeedback = 69;
+            static const uint8_t ReverbMix = 70;
+            static const uint8_t ReverbTime = 71;
+            static const uint8_t AmpGain = 72;
+            static const uint8_t GlobalMonitorVolume = 73;
     }
-     */
+#endif
     
     namespace SysEx {
         

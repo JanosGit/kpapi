@@ -5,8 +5,7 @@
 //  Created by Janos Buttgereit on 28.05.17.
 //  Copyright © 2017 Janos Buttgereit. All rights reserved.
 //
-
-#ifndef ARDUINO
+/*
 #include <iostream>
 
 #include "../../kpapi.h"
@@ -22,10 +21,10 @@ int main(int argc, const char * argv[]) {
     
     KemperProfilingAmp kemperProfilingAmp (connectedDevices[2]);
     
-    std::cout << kemperProfilingAmp.getRigName (Kpa::Rig3) << std::endl;
+    std::cout << kemperProfilingAmp.getActiveRigName() << std::endl;
 
-    kemperProfilingAmp.setTempo (500);
+    //kemperProfilingAmp.setTempo (500);
     
     return 0;
 }
-#endif
+*/
