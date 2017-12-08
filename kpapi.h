@@ -295,10 +295,20 @@ public:
         sendControlChange (ControlChange::ToggleStompMod, 0);
     }
 
+    /** Toggles stomp Delay between on and off state. Set withReverbTail to true
+     * to allow the reverb tail to spill over after switching off the stomp.
+     */
+    void toggleDelay (bool onOff, bool withReverbTail = true) {
+        if (withReverbTail)
+            sendControlChange (ControlChange::ToggleStompDlyWithTail, onOff);
+        else
+            sendControlChange (ControlChange::ToggleStompDly, onOff);
+    }
+
     /** Toggles stomp Reverb between on and off state. Set withReverbTail to true
      * to allow the reverb tail to spill over after switching off the stomp.
      */
-    void toggleDelay (bool withReverbTail = true) {
+    void toggleReverb (bool withReverbTail = true) {
         if (withReverbTail)
             sendControlChange (ControlChange::ToggleStompReverbWithTail, 0);
         else
