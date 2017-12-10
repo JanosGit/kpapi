@@ -9,8 +9,6 @@
 #ifndef kpapiConstants_h
 #define kpapiConstants_h
 
-#import <cstdint>
-
 namespace Kpa {
     
     enum RigNr : uint8_t {
