@@ -5,10 +5,14 @@
 //  Created by Janos Buttgereit on 28.05.17.
 //  Copyright © 2017 Janos Buttgereit. All rights reserved.
 //
-/*
-#include <iostream>
+
 
 #include "../../kpapi.h"
+
+#ifndef SIMPLE_MIDI_ARDUINO // avoid any Arduino IDE from compiling this example
+
+#include <iostream>
+
 
 int main(int argc, const char * argv[]) {
  
@@ -23,8 +27,15 @@ int main(int argc, const char * argv[]) {
     
     std::cout << kemperProfilingAmp.getActiveRigName() << std::endl;
 
+    kemperProfilingAmp.toggleWah (false);
+
+    std::this_thread::sleep_for (std::chrono::seconds(2));
+
+    kemperProfilingAmp.toggleWah (true);
+
     //kemperProfilingAmp.setTempo (500);
     
     return 0;
 }
-*/
+
+#endif

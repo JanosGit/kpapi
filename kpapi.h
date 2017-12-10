@@ -42,19 +42,24 @@ public:
 #endif
 
 #ifdef SIMPLE_MIDI_ARDUINO
-    KemperProfilingAmp (HardwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial), stringResponseManager (*this) {
+    KemperProfilingAmp (HardwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial),
+                                                  stringResponseManager (*this),
+                                                  parameterResponseManager (*this) {
         timePointLastTap = 0;
     };
    /*
 #ifndef SIMPLE_MIDI_NO_SOFT_SERIAL
-    KemperProfilingAmp (SoftwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial), stringResponseManager (*this) {
+    KemperProfilingAmp (SoftwareSerial &serial) : SimpleMIDI::PlatformSpecificImplementation (serial),
+                                                  stringResponseManager (*this),
+                                                  parameterResponseManager (*this) {
         timePointLastTap = 0;
     };
 #endif*/
 #else
 
     KemperProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource) : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
-                                                                           stringResponseManager (*this) {
+                                                                           stringResponseManager (*this),
+                                                                           parameterResponseManager (*this) {
         timePointLastTap = std::chrono::system_clock::now();
     };
 #endif
@@ -218,6 +223,7 @@ public:
     void selectPerformanceAndRig (uint8_t performanceIdx, RigNr rig) {
         sendControlChange (ControlChange ::PerformancePreselect, performanceIdx);
         sendControlChange (rig, 1);
+        currentWahSlot = PageUninitialized;
     }
 
     /**
@@ -226,6 +232,7 @@ public:
      */
     void selectNextPerformance() {
         sendControlChange (ControlChange::PerformanceUp, 0);
+        currentWahSlot = PageUninitialized;
     }
 
     /**
@@ -245,6 +252,7 @@ public:
      */
     void selectPreviousPerformance() {
         sendControlChange (ControlChange::PerformanceDown, 0);
+        currentWahSlot = PageUninitialized;
     }
 
     /**
@@ -260,60 +268,63 @@ public:
     
     // ---------------- Control the effect chain --------------------------------
     
-    /** Control the Wah Pedal */
-    void setWah (uint8_t) {
-        
+    /**
+     * Controls the position of the first Wah Pedal in the effects chain
+     * */
+    void setWah (uint16_t wahPosition) {
+
+        // make sure we know in which slot the wah currently lives
+        if (currentWahSlot == PageUninitialized) {
+            currentWahSlot = getPageOfFirstStompType (Wah);
+        }
+
+        // make sure that the wah is the current nrpm parameter
+        if ((lastNRPNPage != currentWahSlot) || (lastNRPNParameter != WahManual)){
+            setNewNRPNParameter (currentWahSlot, WahManual);
+        }
+
+        // send out the new wah value
+        sendControlChange (6, wahPosition >> 7);
+        sendControlChange (38, wahPosition & 0b0000000001111111);
     }
 
-    /** Toggles stomp A between on and off state */
-    void toggleStompA() {
-        sendControlChange (ControlChange::ToggleStompA, 0);
-    }
-
-    /** Toggles stomp B between on and off state */
-    void toggleStompB() {
-        sendControlChange (ControlChange::ToggleStompB, 0);
-    }
-
-    /** Toggles stomp C between on and off state */
-    void toggleStompC() {
-        sendControlChange (ControlChange::ToggleStompC, 0);
-    }
-
-    /** Toggles stomp D between on and off state */
-    void toggleStompD() {
-        sendControlChange (ControlChange::ToggleStompD, 0);
-    }
-
-    /** Toggles stomp X between on and off state */
-    void toggleStompX() {
-        sendControlChange (ControlChange::ToggleStompX, 0);
-    }
-
-    /** Toggles stomp Mod between on and off state */
-    void toggleMod() {
-        sendControlChange (ControlChange::ToggleStompMod, 0);
-    }
-
-    /** Toggles stomp Delay between on and off state. Set withReverbTail to true
-     * to allow the reverb tail to spill over after switching off the stomp.
+    /**
+     * Switches the first Wah Pedal in the effects chain on or off
      */
-    void toggleDelay (bool onOff, bool withReverbTail = true) {
-        if (withReverbTail)
-            sendControlChange (ControlChange::ToggleStompDlyWithTail, onOff);
-        else
-            sendControlChange (ControlChange::ToggleStompDly, onOff);
+    void toggleWah (bool onOff) {
+        // make sure we know in which slot the wah currently lives
+        if (currentWahSlot == PageUninitialized) {
+            currentWahSlot = getPageOfFirstStompType (Wah);
+        }
+
+        // make sure that the wah is the current nrpm parameter
+        if ((lastNRPNPage != currentWahSlot) || (lastNRPNParameter != OnOff)){
+            setNewNRPNParameter (currentWahSlot, OnOff);
+        }
+
+        // switch the pedal on or off
+        sendControlChange (119, onOff);
     }
 
-    /** Toggles stomp Reverb between on and off state. Set withReverbTail to true
-     * to allow the reverb tail to spill over after switching off the stomp.
+    /**
+     * Toggles a stomp slot on or off, no matter which effect is loaded into that slot.
+     * For the delay or reverb slot it can be chosen if the reverb tail should be cut or kept.
      */
-    void toggleReverb (bool withReverbTail = true) {
-        if (withReverbTail)
-            sendControlChange (ControlChange::ToggleStompReverbWithTail, 0);
-        else
-            sendControlChange (ControlChange::ToggleStompReverb, 0);
+    void toggleStomp (Stomp stompSlot, bool onOff, bool withReverbTail = false) {
+        if (withReverbTail) {
+            if ((stompSlot == Dly) || (stompSlot == Reverb)) {
+                sendControlChange (stompSlot + 2, onOff);
+            }
+            else {
+                // if it's no delay or reverb slot, switch it anyway
+                sendControlChange (stompSlot, onOff);
+            }
+        }
+        else {
+            sendControlChange (stompSlot, onOff);
+        }
     }
+
     // ---------------- Getting string parameters for the active rig ------------
     
     /** Returns the name of the currently active rig */
@@ -401,9 +412,7 @@ public:
 
         return stringBuffer;
     }
-    
-    
-    
+
     
 private:
 // ======== Managing bidirectional communication=================
@@ -604,6 +613,7 @@ private:
     };
 
     ResponseMessageManager<char> stringResponseManager;
+    ResponseMessageManager<int8_t> parameterResponseManager;
 
 #ifdef SIMPLE_MIDI_MULTITHREADED
     MIDIClockGenerator *midiClockGenerator = nullptr;
@@ -612,6 +622,67 @@ private:
     void checkConnectionState() {
         //std::cerr << "Still connected?" << std::endl;
     }
+
+    void sendSingleParameterRequest (uint8_t controllerMSB, uint8_t controllerLSB) {
+        char singleParamRequest[] = {SysExBegin, SysEx::ManCode0, SysEx::ManCode1, SysEx::ManCode2, SysEx::PtProfiler, SysEx::DeviceID, SysEx::FunctionCode::SingleParamValueReq, SysEx::Instance, (char)controllerMSB, (char)controllerLSB, SysExEnd};
+        sendSysEx (singleParamRequest, SysEx::Request::SingleParameterRequestLength);
+    }
+    // ========== NRPN handling ===============================
+    NRPNPage lastNRPNPage = PageUninitialized;
+    NRPNParameter lastNRPNParameter = ParameterUninitialized;
+
+    // will be set to uninitialized on any performance change
+    NRPNPage currentWahSlot = PageUninitialized;
+
+    /**
+     * Helps searching for stomp types in an unknown effects chain. Returns the NRPNPage to control
+     * the stomp found or PageNonexistent if no stomp of this was found in the effects chain.
+     */
+    NRPNPage getPageOfFirstStompType (enum StompType stompTypeToSeachFor) {
+        int8_t response[4];
+
+        // check slots A-D
+        for (uint8_t slot = NRPNPage::StompA; slot <= NRPNPage::StompD; slot++) {
+            sendSingleParameterRequest (slot, NRPNParameter::StompType);
+            parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+
+            if (response[3] == stompTypeToSeachFor) {
+                return (NRPNPage)response[0];
+            }
+        }
+
+        // check slot X
+        sendSingleParameterRequest (NRPNPage::StompX, NRPNParameter::StompType);
+        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+        if (response[3] == stompTypeToSeachFor) {
+            return (NRPNPage)response[0];
+        }
+
+        // check slot Mod
+        sendSingleParameterRequest (NRPNPage::StompMod, NRPNParameter::StompType);
+        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+        if (response[3] == stompTypeToSeachFor) {
+            return (NRPNPage)response[0];
+        }
+
+        // check slot Delay
+        sendSingleParameterRequest (NRPNPage::StompDly, NRPNParameter::StompType);
+        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+        if (response[3] == stompTypeToSeachFor) {
+            return (NRPNPage)response[0];
+        }
+
+        // return nonexstistent if no slot contained a Wah Stomp
+        return PageNonexistent;
+    }
+
+    void setNewNRPNParameter (NRPNPage newPage, NRPNParameter newParameter) {
+        sendControlChange (99, newPage);
+        sendControlChange (98, newParameter);
+        lastNRPNPage = newPage;
+        lastNRPNParameter = newParameter;
+    }
+
     
 // ======== SimpleMIDI meber functions ========================
     
@@ -650,6 +721,10 @@ private:
 
                 }
                     break;
+
+                case SysEx::FunctionCode::SingleParamChange: {
+                    parameterResponseManager.receivedResponse ((int8_t*)sysExBuffer + 8, 4);
+                }
             }
             
         }
