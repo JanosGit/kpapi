@@ -61,33 +61,7 @@ namespace Kpa {
             return (Stomp) stomp;
         }
     }
-
-#ifndef SIMPLE_MIDI_ARDUINO
-    // seems like some arduino compatible compilers don't like these enums
-    enum ControlChange : uint8_t {
-        WahPedal = 1,
-        PitchPedal = 4,
-
-        TapTempo = 30, // Value 1 = Down, Value 0 = Up
-        Tuner = 31, // Value 1 = Show, 0 = Hide
-        RotarySpeed = 33, // Value 0 = Slow, Value 1 = Fast
-        DelayInfFeedback = 34,
-        DelayHold = 35,
-
-        // Performances and Slots
-        PerformancePreselect = 47, // Value 0 - 124 = Performance to preselect
-        PerformanceUp = 48, // Value 0 = simply up, Value 1 = start scrolling (stop with 0)
-        PerformanceDown = 49, // just as PerformanceUp
-
-        // Effect parameters
-        DelayMix = 68,
-        DelayFeedback = 69,
-        ReverbMix = 70,
-        ReverbTime = 71,
-        AmpGain = 72,
-        GlobalMonitorVolume = 73
-    };
-
+    
     enum NRPNPage : int8_t {
         PageUninitialized = -1,
         PageNonexistent = -2,
@@ -107,7 +81,7 @@ namespace Kpa {
         SystemGlobal1 = 125,
         SystemGlobal2 = 127
     };
-
+    
     enum NRPNParameter : int8_t {
         ParameterUninitialized = -1,
         RigTempo = -2,
@@ -144,7 +118,7 @@ namespace Kpa {
         StompXType = -33,
         StompDlyType = -34,
         StompRevType = -35,
-
+        
         // ======== These numbers can be interpreted as NRPN LSBs directly =======
         StompType = 0,
         OnOff = 3,
@@ -156,14 +130,14 @@ namespace Kpa {
         WahTouchAttack = 13,
         WahTouchRelease = 14,
         WahTouchBoost = 15,
-
+        
         DisShaperDrive = 16,
         DisBoosterTone = 17,
-
+        
         CompGateIntensity = 18,
         CompAttack = 19,
         CompSquash = 33,
-
+        
         ModRate = 20,
         ModDepth = 21,
         ModFeedback = 22,
@@ -172,11 +146,11 @@ namespace Kpa {
         ModManual = 25,
         ModPhaserPeakSpread = 26,
         ModPhaserStages = 27,
-
+        
         RotarySpeedSlowFast = 30,
         RotayDistance = 31,
         RotaryBalance = 32,
-
+        
         GEQBand1 = 34,
         GEQBand2 = 35,
         GEQBand3 = 36,
@@ -185,7 +159,7 @@ namespace Kpa {
         GEQBand6 = 39,
         GEQBand7 = 40,
         GEQBand8 = 41,
-
+        
         PEQLowGain = 42,
         PEQLowFreq = 43,
         PEQHighGain = 44,
@@ -196,22 +170,22 @@ namespace Kpa {
         PEQPeak2Gain = 49,
         PEQPeak2Freq = 50,
         PEQPeak2Q = 51,
-
+        
         Ducking = 53,
-
+        
         VoiceMix = 55,
-
+        
         Detune = 58,
         SmoothChords = 60,
         PureTuning = 61,
-
+        
         Key = 64,
-
+        
         FreezeFormants = 65,
         FormantOffset = 66,
         LowCut = 67,
         HighCut = 68,
-
+        
         DlyMix = 69,
         DlyMixPrePost = 70,
         DlyTime1 = 71,
@@ -255,11 +229,11 @@ namespace Kpa {
         DlySwell = 107,
         DlySmear = 108,
         DlyDucking = 109,
-
+        
         // ======================================================================
         // to be continued...
     };
-
+    
     enum StompType : int8_t {
         Empty = 0,
         Wah = 1,
@@ -269,8 +243,36 @@ namespace Kpa {
         VintageChorus = 65,
         PhaserVibe = 82,
         StudioEqualizer = 98,
-
+        
         // to be continued...
+    };
+
+#ifndef SIMPLE_MIDI_ARDUINO
+    // seems like some arduino compatible compilers don't like these enums
+    enum ControlChange : uint8_t {
+        WahPedal = 1,
+        PitchPedal = 4,
+        VolumePedal = 7,
+        MorphPedal = 11,
+
+        TapTempo = 30, // Value 1 = Down, Value 0 = Up
+        Tuner = 31, // Value 1 = Show, 0 = Hide
+        RotarySpeed = 33, // Value 0 = Slow, Value 1 = Fast
+        DelayInfFeedback = 34,
+        DelayHold = 35,
+
+        // Performances and Slots
+        PerformancePreselect = 47, // Value 0 - 124 = Performance to preselect
+        PerformanceUp = 48, // Value 0 = simply up, Value 1 = start scrolling (stop with 0)
+        PerformanceDown = 49, // just as PerformanceUp
+
+        // Effect parameters
+        DelayMix = 68,
+        DelayFeedback = 69,
+        ReverbMix = 70,
+        ReverbTime = 71,
+        AmpGain = 72,
+        GlobalMonitorVolume = 73
     };
 
 #else
@@ -278,6 +280,8 @@ namespace Kpa {
 
             static const uint8_t WahPedal = 1;
             static const uint8_t PitchPedal = 4;
+            static const uint8_t VolumePedal = 7;
+            static const uint8_t MorphPedal = 11;
 
             static const uint8_t TapTempo = 30; // Value 1 = Down, Value 0 = Up
             static const uint8_t Tuner = 31; // Value 1 = Show, 0 = Hide

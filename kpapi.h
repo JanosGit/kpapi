@@ -269,9 +269,9 @@ public:
     // ---------------- Control the effect chain --------------------------------
     
     /**
-     * Controls the position of the first Wah Pedal in the effects chain
+     * Controls the position of the first Wah Pedal in the effects chain. Uses NRPN for 14-Bit Values
      * */
-    void setWah (uint16_t wahPosition) {
+    void setWahFine (uint16_t wahPosition) {
 
         // make sure we know in which slot the wah currently lives
         if (currentWahSlot == PageUninitialized) {
@@ -286,6 +286,13 @@ public:
         // send out the new wah value
         sendControlChange (6, wahPosition >> 7);
         sendControlChange (38, wahPosition & 0b0000000001111111);
+    }
+    
+    /**
+     * Controls the position of the first Wah Pedal in the effects chain. Uses CC for 7-Bit Values
+     */
+    void setWahCoarse (uint8_t wahPosition) {
+        sendControlChange (ControlChange::WahPedal, wahPosition);
     }
 
     /**
@@ -304,6 +311,27 @@ public:
 
         // switch the pedal on or off
         sendControlChange (119, onOff);
+    }
+    
+    /**
+     * Controls the position of the first Volume Pedal in the effects chain. Uses CC for 7-Bit Values
+     */
+    void setVolumePedal (uint8_t volumePedalPosition) {
+        sendControlChange (ControlChange::VolumePedal, volumePedalPosition);
+    }
+    
+    /**
+     * Controls the position of the first Pitch Pedal in the effects chain. Uses CC for 7-Bit Values
+     */
+    void setPitchPedal (uint8_t pitchPedalPosition) {
+        sendControlChange (ControlChange::PitchPedal, pitchPedalPosition);
+    }
+    
+    /**
+     * Controls the position of the first Morph Pedal in the effects chain. Uses CC for 7-Bit Values
+     */
+    void setMorphPedal (uint8_t morphPedalPosition) {
+        sendControlChange (ControlChange::MorphPedal, morphPedalPosition);
     }
 
     /**
