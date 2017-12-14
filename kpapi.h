@@ -17,14 +17,21 @@
 #endif
 
 #include "kpapiConstants.h"
+
 /*
-#include <LiquidCrystal.h>
-LiquidCrystal lcd (8, 9, 10, 11, 12, 13);
+// Forward declaration of stomps
+class StompBase;
+class GenericWahStomp;
+class WahWahStomp;
  */
 
 using namespace Kpa;
 
 class KemperProfilingAmp : private SimpleMIDI::PlatformSpecificImplementation {
+
+    friend class ReverbStomp;
+    friend class WahStomp;
+    friend class PhaserVibeStomp;
     
 public:
 
@@ -208,6 +215,7 @@ public:
     /** Select a rig in the current performance */
     void selectRig (RigNr rig) {
         sendControlChange (rig, 1);
+        needStompListUpdate = true;
     }
 
     /**
@@ -223,7 +231,7 @@ public:
     void selectPerformanceAndRig (uint8_t performanceIdx, RigNr rig) {
         sendControlChange (ControlChange ::PerformancePreselect, performanceIdx);
         sendControlChange (rig, 1);
-        currentWahSlot = PageUninitialized;
+        needStompListUpdate = true;
     }
 
     /**
@@ -232,7 +240,7 @@ public:
      */
     void selectNextPerformance() {
         sendControlChange (ControlChange::PerformanceUp, 0);
-        currentWahSlot = PageUninitialized;
+        needStompListUpdate = true;
     }
 
     /**
@@ -252,7 +260,7 @@ public:
      */
     void selectPreviousPerformance() {
         sendControlChange (ControlChange::PerformanceDown, 0);
-        currentWahSlot = PageUninitialized;
+        needStompListUpdate = true;
     }
 
     /**
@@ -267,25 +275,125 @@ public:
     }
     
     // ---------------- Control the effect chain --------------------------------
-    
+
+    // ---------------- Nested classes for the stomps ---------------------------
+    class StompBase {
+
+    public:
+
+        StompBase (NRPNPage slotPage, KemperProfilingAmp &amp) : _slotPage (slotPage), _amp(amp) {};
+
+        StompType getStompType() {
+            return stompType;
+        }
+
+        /**
+         * Should be overriden by derived class to determine if the assumed stomp is still present in that slot.
+         * An instance of the base class can never be valid, so this always returns true for StompBase;
+         * @return
+         */
+        virtual bool isStillValid() {return false; };
+
+        void toggleOnOff (bool onOff) {
+
+            if ((_amp.lastNRPNPage != _slotPage) || (_amp.lastNRPNParameter != OnOff)) {
+                _amp.setNewNRPNParameter (_slotPage, OnOff);
+            }
+
+            _amp.sendControlChange (<#uint8_t control#>, <#uint8_t value#>)
+        }
+
+    protected:
+        StompType stompType = StompType::Empty;
+        const NRPNPage _slotPage;
+        KemperProfilingAmp &_amp;
+    };
+
+
+    class GenericWahStomp : public StompBase {
+
+    public:
+
+        GenericWahStomp (NRPNPage slotPage, KemperProfilingAmp &amp) : StompBase (slotPage, amp) {
+            stompType |= StompType::GenericWah;
+        };
+        /**
+         * Checks if there still is a generic Wah stomp in this slot
+         * @return
+         */
+        bool isStillValid() override {
+            if (((stompType & StompType::GenericMask) == StompType::GenericWah) && (_slotPage != PageUninitialized)) {
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Sets the Wah manual parameter. The value should be in the range 0 - 16383
+         */
+        void setManual (uint16_t manual) {
+
+            if ((_amp.lastNRPNPage != _slotPage) || (_amp.lastNRPNParameter != WahManual)) {
+                _amp.setNewNRPNParameter (_slotPage, WahManual);
+            }
+
+            _amp.sendControlChange (NRPNValMSB, manual >> 7);
+            _amp.sendControlChange (NRPNValLSB, manual & 0x7F);
+        }
+    };
+
+    class WahWahStomp : public GenericWahStomp {
+
+    public:
+        /**
+         * Constructs a WahWah stomp.
+         */
+        WahWahStomp (NRPNPage slotPage, KemperProfilingAmp &amp) : GenericWahStomp (slotPage, amp) {
+            stompType = (stompType|StompType::WahWah);
+        };
+
+        bool isStillValid() override {
+            if (((stompType & StompType::SpecificMask) == StompType::WahWah) && (_slotPage != PageUninitialized)) {
+                return true;
+            }
+            return false;
+        }
+    };
+
     /**
-     * Controls the position of the first Wah Pedal in the effects chain. Uses NRPN for 14-Bit Values
-     * */
-    void setWahFine (uint16_t wahPosition) {
-
-        // make sure we know in which slot the wah currently lives
-        if (currentWahSlot == PageUninitialized) {
-            currentWahSlot = getPageOfFirstStompType (Wah);
+     * Toggles a stomp slot on or off, no matter which effect is loaded into that slot.
+     * For the delay or reverb slot it can be chosen if the reverb tail should be cut or kept.
+     */
+    void toggleStomp (StompSlot stompSlot, bool onOff, bool withReverbTail = false) {
+        if (withReverbTail) {
+            if ((stompSlot == Dly) || (stompSlot == Rev)) {
+                sendControlChange (stompToggleCC[stompSlot] + 2, onOff);
+            }
+            else {
+                // if it's no delay or reverb slot, switch it anyway
+                sendControlChange (stompToggleCC[stompSlot], onOff);
+            }
         }
-
-        // make sure that the wah is the current nrpm parameter
-        if ((lastNRPNPage != currentWahSlot) || (lastNRPNParameter != WahManual)){
-            setNewNRPNParameter (currentWahSlot, WahManual);
+        else {
+            sendControlChange (stompToggleCC[stompSlot], onOff);
         }
+    }
 
-        // send out the new wah value
-        sendControlChange (6, wahPosition >> 7);
-        sendControlChange (38, wahPosition & 0b0000000001111111);
+    /**
+     * Returns true if the stomp is switched on, false otherwise
+     */
+    bool getStompToggleState (StompSlot stompSlot) {
+        return getStompToggleState (stompSlotToNRPNPage (stompSlot));
+    }
+
+    /**
+     * Returns true if the stomp is switched on, false otherwise
+     */
+    bool getStompToggleState (NRPNPage stompSlotPage) {
+        int8_t response[4];
+        sendSingleParameterRequest (stompSlotPage, NRPNParameter::OnOff);
+        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+        return response[3];
     }
     
     /**
@@ -293,24 +401,6 @@ public:
      */
     void setWahCoarse (uint8_t wahPosition) {
         sendControlChange (ControlChange::WahPedal, wahPosition);
-    }
-
-    /**
-     * Switches the first Wah Pedal in the effects chain on or off
-     */
-    void toggleWah (bool onOff) {
-        // make sure we know in which slot the wah currently lives
-        if (currentWahSlot == PageUninitialized) {
-            currentWahSlot = getPageOfFirstStompType (Wah);
-        }
-
-        // make sure that the wah is the current nrpm parameter
-        if ((lastNRPNPage != currentWahSlot) || (lastNRPNParameter != OnOff)){
-            setNewNRPNParameter (currentWahSlot, OnOff);
-        }
-
-        // switch the pedal on or off
-        sendControlChange (119, onOff);
     }
     
     /**
@@ -335,29 +425,100 @@ public:
     }
 
     /**
-     * Toggles a stomp slot on or off, no matter which effect is loaded into that slot.
-     * For the delay or reverb slot it can be chosen if the reverb tail should be cut or kept.
+     * This will update the internal list of stomps which will get cleared after each rig or performance change.
+     * It will be called internally as soon as any stomp will be controlled, so you don't need to call this, but
+     * you might implement a call to this after each rig change to speed up the access of effect parameters
+     * right after a the rig change.
      */
-    void toggleStomp (Stomp stompSlot, bool onOff, bool withReverbTail = false) {
-        if (withReverbTail) {
-            if ((stompSlot == Dly) || (stompSlot == Reverb)) {
-                sendControlChange (stompSlot + 2, onOff);
+    void scanStompSlots() {
+        needStompListUpdate = false;
+        int8_t response[4];
+
+        // scan all 8 stomp slots
+        for (int8_t i = 0; i < 8; i++) {
+            NRPNPage pageToScan = fxSlotNRPNPageMapping[i];
+            sendSingleParameterRequest (pageToScan, NRPNParameter::StompTypeID);
+            parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+
+            // if the response was matching the request, allocate a new stomp in that slot
+            char *memBlock = stompMemoryBlock + (i * sizeof (StompBase));
+            delete stompsInCurrentRig[i];
+            if (response[0] == pageToScan) {
+
+                switch ((StompType)response[3]) {
+                    case StompType::WahWah:
+                        stompsInCurrentRig[i] = new(memBlock) WahWahStomp (pageToScan, *this);
+                        break;
+
+                    default:
+                        stompsInCurrentRig[i] = new(memBlock) StompBase (pageToScan, *this);
+                        break;
+                }
             }
             else {
-                // if it's no delay or reverb slot, switch it anyway
-                sendControlChange (stompSlot, onOff);
+                midiCommunicationError (responseNotMatchingToRequest);
+                stompsInCurrentRig[i] = new(memBlock) StompBase (pageToScan, *this);
+                needStompListUpdate = true;
             }
         }
-        else {
-            sendControlChange (stompSlot, onOff);
+    }
+
+    /**
+     * Helps searching for stomp types in the effects chain. Searches for a generic Stomp type, e.g.
+     * if you pass GenericDistortion it will return the first slot any kind of distortion was found
+     * in. If no stomp of this kind is found, it will return StompSlot::Nonexistent, if the type passed
+     * was no generic type, it will return StompType::Unknown
+     */
+    StompSlot getSlotOfFirstGenericStompType (StompType stompTypeToSearchFor) {
+
+        if (stompTypeToSearchFor <= StompType::SpecificMask)
+            return StompSlot::Unknown;
+
+        if (needStompListUpdate) {
+            scanStompSlots();
         }
+
+        for (int8_t i = 0; i < 0; i++) {
+            if ((stompsInCurrentRig[i]->getStompType() & StompType::GenericMask) == stompTypeToSearchFor) {
+                return (StompSlot)i;
+            }
+        }
+
+        return StompSlot::Nonexistent;
+    }
+
+    /**
+     * Helps searching for stomp types in the effects chain. Searches for a specific Stomp type, e.g.
+     * if you pass MuffinDistortion it will return the first slot this specific type of stomp was found
+     * in. If no stomp of this kind is found, it will return StompSlot::Nonexistent, if the type passed
+     * was no specific type, it will return StompType::Unknown
+     */
+    StompSlot getSlotOfFirstSpecificStompType (StompType stompTypeToSearchFor) {
+
+        if (stompTypeToSearchFor > StompType::SpecificMask)
+            return StompSlot::Unknown;
+
+        if (needStompListUpdate) {
+            scanStompSlots();
+        }
+
+        for (int8_t i = 0; i < 0; i++) {
+            if ((stompsInCurrentRig[i]->getStompType() & StompType::SpecificMask) == stompTypeToSearchFor) {
+                return (StompSlot)i;
+            }
+        }
+
+        return StompSlot::Nonexistent;
+    }
+
+    GenericWahStomp *getGenericWah (StompSlot stompSlot = StompSlot::First) {
+        return (GenericWahStomp*) getGenericStompInstance (StompType::GenericWah, stompSlot);
     }
 
     // ---------------- Getting string parameters for the active rig ------------
     
     /** Returns the name of the currently active rig */
     returnStringType getActiveRigName () {
-        //lcd.print("Rigname ");
         KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
         sendSysEx (SysEx::Request::ActiveRigName, SysEx::Request::ActiveRigNameLength);
         stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
@@ -440,7 +601,6 @@ public:
 
         return stringBuffer;
     }
-
     
 private:
 // ======== Managing bidirectional communication=================
@@ -579,7 +739,7 @@ private:
                     waitingForResponse.store (false);
                     // clear the buffer completely in this case
                     std::fill (responseTargetBuffer, responseTargetBuffer + responseTargetBufferSize, 0);
-                    _outerClass.checkConnectionState ();
+                    _outerClass.midiCommunicationError (noResponseBeforeTimeout);
                     return timeout;
                 }
             }
@@ -647,7 +807,26 @@ private:
     MIDIClockGenerator *midiClockGenerator = nullptr;
 #endif
 
-    void checkConnectionState() {
+    void midiCommunicationError (MIDICommunicationErrorCode ec) {
+#ifndef SIMPLE_MIDI_ARDUINO
+
+        std::cerr << "kpapi MIDI communication error: ";
+        switch (ec) {
+            case missingActiveSense:
+                std::cerr << "Missing active Sense";
+                break;
+
+            case noResponseBeforeTimeout:
+                std::cerr << "No response before timeout";
+                break;
+
+            case responseNotMatchingToRequest:
+                std::cerr << "The response received was not matching the last request";
+                break;
+        }
+
+        std::cerr << std::endl;
+#endif
         //std::cerr << "Still connected?" << std::endl;
     }
 
@@ -659,49 +838,45 @@ private:
     NRPNPage lastNRPNPage = PageUninitialized;
     NRPNParameter lastNRPNParameter = ParameterUninitialized;
 
-    // will be set to uninitialized on any performance change
-    NRPNPage currentWahSlot = PageUninitialized;
+
+    // ========== Stomp handling ===============================
+    // just in case there will be other kemper amps in future with a differnt stomp slot count, make this one variable
+    static const uint8_t numStomps = 8;
+    // the memory block for the placement-new allocation of stomps
+    char stompMemoryBlock[numStomps * sizeof (WahWahStomp)];
+    StompBase *stompsInCurrentRig[numStomps];
+    bool needStompListUpdate = true;
 
     /**
-     * Helps searching for stomp types in an unknown effects chain. Returns the NRPNPage to control
-     * the stomp found or PageNonexistent if no stomp of this was found in the effects chain.
+     * Searches for a generic stomp instance in a particular stomp slot and returns a pointer to
+     * this instance. If the stompSlot value passed is StompSlot::First, it scans all slots for an
+     * instance of this type and returns a pointer to the first match found. If no instance could be
+     * found in the desired slot or in any slot if searching for StompSlot::First, a nullpointer will
+     * be returned.
+     * This function should only be used if you are searching for a generic stomp type, otherwise
+     * get specificSpecificStompInstance should be used. Generally this will never be used by the user,
+     * because the StompBase pointer won't allow any parameter interaction. The corresponding public
+     * functions that call this function inside will downcast the pointer to the specific class corresponding
+     * to the stomp type so that the user might interact with the stomp.
      */
-    NRPNPage getPageOfFirstStompType (enum StompType stompTypeToSeachFor) {
-        int8_t response[4];
+    StompBase *getGenericStompInstance (StompType genericStompType, StompSlot stompSlot) {
+        // check if the list is still up to date and get an update otherwise
+        if (needStompListUpdate) {
+            scanStompSlots ();
+        }
 
-        // check slots A-D
-        for (uint8_t slot = NRPNPage::StompA; slot <= NRPNPage::StompD; slot++) {
-            sendSingleParameterRequest (slot, NRPNParameter::StompType);
-            parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+        if (stompSlot == StompSlot::First) {
+            stompSlot = getSlotOfFirstGenericStompType (genericStompType);
+        }
 
-            if (response[3] == stompTypeToSeachFor) {
-                return (NRPNPage)response[0];
+        // check if the slot Index is inside the valid range
+        if ((stompSlot >= StompSlot::A) && (stompSlot <= StompSlot::Rev)) {
+            if ((stompsInCurrentRig[stompSlot]->getStompType() & StompType::GenericMask) == genericStompType) {
+                return stompsInCurrentRig[stompSlot];
             }
         }
 
-        // check slot X
-        sendSingleParameterRequest (NRPNPage::StompX, NRPNParameter::StompType);
-        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
-        if (response[3] == stompTypeToSeachFor) {
-            return (NRPNPage)response[0];
-        }
-
-        // check slot Mod
-        sendSingleParameterRequest (NRPNPage::StompMod, NRPNParameter::StompType);
-        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
-        if (response[3] == stompTypeToSeachFor) {
-            return (NRPNPage)response[0];
-        }
-
-        // check slot Delay
-        sendSingleParameterRequest (NRPNPage::StompDly, NRPNParameter::StompType);
-        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
-        if (response[3] == stompTypeToSeachFor) {
-            return (NRPNPage)response[0];
-        }
-
-        // return nonexstistent if no slot contained a Wah Stomp
-        return PageNonexistent;
+        return nullptr;
     }
 
     void setNewNRPNParameter (NRPNPage newPage, NRPNParameter newParameter) {
@@ -767,8 +942,6 @@ private:
 #endif
     
 };
-
-
 
 
 

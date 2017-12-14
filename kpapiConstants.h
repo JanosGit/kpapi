@@ -9,6 +9,9 @@
 #ifndef kpapiConstants_h
 #define kpapiConstants_h
 
+// Forward declaration
+class KemperProfilingAmp;
+
 namespace Kpa {
     
     enum RigNr : uint8_t {
@@ -26,42 +29,25 @@ namespace Kpa {
         return (RigNr) (rig + 50);
     }
 
-    enum Stomp : int8_t {
+    enum StompSlot : int8_t {
         Unknown = -1,
         Nonexistent = -2,
-        A = 17,
-        B = 18,
-        C = 19,
-        D = 20,
-        X = 22,
-        Mod = 24,
-        Dly = 26,
-        Reverb = 28
+        First = -3,
+        A = 0,
+        B = 1,
+        C = 2,
+        D = 3,
+        X = 4,
+        Mod = 5,
+        Dly = 6,
+        Rev = 7
     };
 
-    /**
-     * Converts a index number to the corresponding Stomp parameter. The mapping is:
-     * 0 : Stomp::A
-     * 1 : Stomp::B
-     * 2 : Stomp::C
-     * 3 : Stomp::D
-     * 4 : Stomp::X
-     * 5 : Stomp::Mod
-     * 6 : Stomp::Dly
-     * 7 : Stomp::Reverb
-     */
-    Stomp toStomp (uint8_t stomp) {
-        if (stomp < 3) {
-            return (Stomp) (stomp + 17);
-        }
-        else {
-            stomp -= 3;
-            stomp *= 2;
-            stomp += 20;
-            return (Stomp) stomp;
-        }
-    }
-    
+    static const uint8_t stompToggleCC[8] = {17, 18, 19, 20, 22, 24, 26, 28};
+
+    static const uint8_t NRPNValMSB = 6;
+    static const uint8_t NRPNValLSB = 38;
+
     enum NRPNPage : int8_t {
         PageUninitialized = -1,
         PageNonexistent = -2,
@@ -81,6 +67,20 @@ namespace Kpa {
         SystemGlobal1 = 125,
         SystemGlobal2 = 127
     };
+
+    /**
+     * Converts a Stomp value to the corresponding NRPNPage. No error checking,
+     * you have to ensure that the value passed is valid.
+     */
+    NRPNPage stompSlotToNRPNPage (StompSlot stomp) {
+        if (stomp <= D) {
+            return (NRPNPage)(stomp + 50);
+        }
+        if (stomp <= Dly) {
+            return (NRPNPage)((stomp - 3) * 2 + 54);
+        }
+        return StompReverb;
+    }
     
     enum NRPNParameter : int8_t {
         ParameterUninitialized = -1,
@@ -120,7 +120,7 @@ namespace Kpa {
         StompRevType = -35,
         
         // ======== These numbers can be interpreted as NRPN LSBs directly =======
-        StompType = 0,
+        StompTypeID = 0,
         OnOff = 3,
         WahManual = 8,
         WahPeak = 9,
@@ -234,18 +234,62 @@ namespace Kpa {
         // to be continued...
     };
     
-    enum StompType : int8_t {
+    enum class StompType : uint16_t {
         Empty = 0,
-        Wah = 1,
+
+        // Generic types
+        GenericMask = 0xFF00,
+        GenericDelay = 1 << 8,
+        GenericPitchShifterDelay = 2 << 8,
+        GenericWah = 3 << 8,
+        GenericDistortion = 4 << 8,
+        GenericShaper = 5 << 8,
+        GenericBooster = 6 << 8,
+        GenericEq = 7 << 8,
+        GenericDynamics = 8 << 8,
+        GenericChorus = 9 << 8,
+        GenericPhaser = 10 << 8,
+        GenericPitchShifter = 11 << 8,
+        GenericEffectsLoop = 12 << 8,
+
+        // Specific types
+        SpecificMask = 0x00FF,
+        WahWah = 1,
+        WahLowPass,
+        WahHighPass,
+        WahVowel,
+        WahPhaser,
+        WahFlanger,
+
         AnalogOctaver = 4,
         WahRingModulator = 9,
-        Muffin = 36,
+        MuffinDistortion = 36,
         VintageChorus = 65,
         PhaserVibe = 82,
         StudioEqualizer = 98,
         
         // to be continued...
     };
+
+    inline constexpr StompType
+    operator& (StompType x, StompType y)
+    {
+        return (StompType) ((uint16_t)x & (uint16_t)y);
+    }
+
+    inline constexpr StompType
+    operator| (StompType x, StompType y)
+    {
+        return (StompType) ((uint16_t)x | (uint16_t)y);
+    }
+
+    inline StompType &
+    operator|= (StompType &x, StompType y)
+    {
+        x = x | y;
+        return x;
+    }
+
 
 #ifndef SIMPLE_MIDI_ARDUINO
     // seems like some arduino compatible compilers don't like these enums
@@ -368,7 +412,16 @@ namespace Kpa {
         
     }
 
+    /**
+     * Maps an index from 0 - 7 to the corresponding NRPN page to control a stomp
+     */
+    static const NRPNPage fxSlotNRPNPageMapping[8] = {StompA, StompB, StompC, StompD, StompX, StompMod, StompDly, StompReverb};
 
+    enum MIDICommunicationErrorCode {
+        missingActiveSense,
+        noResponseBeforeTimeout,
+        responseNotMatchingToRequest
+    };
 }
 
 #endif /* kpapiConstants_h */
