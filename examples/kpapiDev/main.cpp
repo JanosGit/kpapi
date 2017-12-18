@@ -23,13 +23,22 @@ int main(int argc, const char * argv[]) {
         std::cout << dev.deviceName << std::endl;
     }
     
-    KemperProfilingAmp kemperProfilingAmp (connectedDevices[2]);
+    ProfilingAmp profilingAmp (connectedDevices[2]);
     
-    std::cout << kemperProfilingAmp.getActiveRigName() << std::endl;
+    std::cout << profilingAmp.getActiveRigName() << std::endl;
+
+    ProfilingAmp::WahWahStomp *wah = profilingAmp.getWahWahStomp();
+
+    if (wah == nullptr) {
+        std::cout << "No wah wah in current rig!" << std::endl;
+        return 0;
+    }
+
+    std::cout << "Rig has a wah wah!" << std::endl;
 
     std::this_thread::sleep_for (std::chrono::seconds(2));
 
-    //kemperProfilingAmp.setTempo (500);
+    wah->toggleOnOff (true);
     
     return 0;
 }
