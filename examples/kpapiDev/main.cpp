@@ -25,9 +25,11 @@ int main(int argc, const char * argv[]) {
     
     ProfilingAmp profilingAmp (connectedDevices[2]);
     
-    std::cout << profilingAmp.getActiveRigName() << std::endl;
+    std::cout << "Performance " << profilingAmp.getActivePerformanceName () << " loaded" << std::endl;
+    std::cout << "Rig " << profilingAmp.getActiveRigName() << " is active" << std::endl;
 
-    ProfilingAmp::WahWahStomp *wah = profilingAmp.getWahWahStomp();
+    //auto *wah = profilingAmp.getWahWahStomp();
+    auto *wah = profilingAmp.getGenericWahStomp ();
 
     if (wah == nullptr) {
         std::cout << "No wah wah in current rig!" << std::endl;

@@ -119,6 +119,7 @@ public:
 
         AnalogOctaver = 4,
         WahRingModulator = 9,
+        TwoTapDelay = 20,
         MuffinDistortion = 36,
         GreenScreamDistortion,
         VintageChorus = 65,
@@ -143,6 +144,7 @@ public:
                                                   stringResponseManager (*this),
                                                   parameterResponseManager (*this) {
         timePointLastTap = 0;
+        initializeStompsInCurrentRig();
     };
 
 #ifndef SIMPLE_MIDI_NO_SOFT_SERIAL
@@ -151,6 +153,7 @@ public:
                                                   stringResponseManager (*this),
                                                   parameterResponseManager (*this) {
         timePointLastTap = 0;
+        initializeStompsInCurrentRig();
     };
 #endif //SIMPLE_MIDI_NO_SOFT_SERIAL
 
@@ -178,6 +181,7 @@ public:
                                                                            stringResponseManager (*this),
                                                                            parameterResponseManager (*this) {
         timePointLastTap = std::chrono::system_clock::now();
+        initializeStompsInCurrentRig();
     };
 #endif
 
@@ -365,7 +369,6 @@ public:
         /**
          * Should be overriden by derived class to determine if the assumed stomp is still present in that slot.
          * An instance of the base class can never be valid, so this always returns false for StompBase instances;
-         * @return
          */
         virtual bool isStillValid() {return false; };
 
@@ -576,8 +579,8 @@ private:
          * If a timeout appears, all response buffer fields will be filled with zeros - so in case it's a C string char
          * array, this will be interpreted as an empty string while in case of integer or float values, this will be the
          * numerical value 0.
-         * @param responseBuffer Pointer to an array that's filled with the response data.
-         * @param responseBufferSize Size of the array to fill (number of array elements, NOT size in Bytes!).
+         * @param responseTargetBuffer Pointer to an array that's filled with the response data.
+         * @param responseTargetBufferSize Size of the array to fill (number of array elements, NOT size in Bytes!).
          * @param timeoutInMilliseconds Time to wait for a response.
          *
          * @return errorCode::success if successful, errorCode::timeout if a timeout occured
@@ -625,8 +628,8 @@ private:
          * This is called by the corresponding MIDI handler when a speficic kind of message was received. If no
          * request was sent out before, it returns false and does nothing, otherwise it aquires the mutex to the
          * response target buffer and copies the elements from the source buffer.
-         * @param responseBuffer The buffer provided by the MIDI handler.
-         * @param responseBufferSize The number of elemets to copy to the target buffer (number of array elements, NOT size in Bytes!).
+         * @param responseTargetBuffer The buffer provided by the MIDI handler.
+         * @param responseTargetBufferSize The number of elemets to copy to the target buffer (number of array elements, NOT size in Bytes!).
          * @return false if no thread was waiting for a response, true if the response could have been delivered.
          */
         bool receivedResponse (const T *responseSourceBuffer, int responseSourceBufferSize) {
@@ -899,11 +902,12 @@ private:
         GlobalMonitorVolume = 73
     };
 
-    void sendSingleParameterRequest (uint8_t controllerMSB, uint8_t controllerLSB) {
-        using namespace kpapi::SysEx;
-        char singleParamRequest[] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::SingleParamValueReq, Instance, (char)controllerMSB, (char)controllerLSB, SysExEnd};
-        sendSysEx (singleParamRequest, Request::SingleParameterRequestLength);
-    }
+    /**
+     * Sends a a single parameter request sysEx and returns the response as a 14 Bit value.
+     * In case of any error it will return -1 - and midiCommunicationError will be called to
+     * handle possible midi errors.
+     */
+    int16_t getSingleParameter (int8_t pageOrMSB, int8_t parameterOrLSB);
 
     // ========== NRPN handling ===============================
     NRPNPage lastNRPNPage = PageUninitialized;
@@ -935,6 +939,9 @@ private:
     char stompMemoryBlock[numStomps * sizeof (WahWahStomp)];
     StompBase *stompsInCurrentRig[numStomps];
     bool needStompListUpdate = true;
+
+    /** Simply fills all 8 slots with empty stomps. */
+    void initializeStompsInCurrentRig();
 
     /**
      * Searches for a generic stomp instance in a particular stomp slot and returns a pointer to
@@ -1133,10 +1140,7 @@ bool ProfilingAmp::getStompToggleState (StompSlot stompSlot) {
 }
 
 bool ProfilingAmp::getStompToggleState (NRPNPage stompSlotPage) {
-    int8_t response[4];
-    sendSingleParameterRequest (stompSlotPage, NRPNParameter::OnOff);
-    parameterResponseManager.waitingForResponseOrTimeout (response, 4);
-    return response[3];
+    return getSingleParameter (stompSlotPage, NRPNParameter::OnOff);
 }
 
 void ProfilingAmp::setWahPedal (uint8_t wahPosition) {
@@ -1191,21 +1195,24 @@ ProfilingAmp::WahWahStomp* ProfilingAmp::getWahWahStomp (StompSlot stompSlot) {
 
 void ProfilingAmp::scanStompSlots() {
     needStompListUpdate = false;
-    int8_t response[4];
 
     // scan all 8 stomp slots
     for (int8_t i = 0; i < 8; i++) {
         NRPNPage pageToScan = fxSlotNRPNPageMapping[i];
-        sendSingleParameterRequest (pageToScan, NRPNParameter::StompTypeID);
-        parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+        int16_t stompType = (StompType)getSingleParameter (pageToScan, NRPNParameter::StompTypeID);
+
 
         // if the response was matching the request, allocate a new stomp in that slot
         char *memBlock = stompMemoryBlock + (i * sizeof (StompBase));
-        // todo: load empty stomps at startup
-        //delete stompsInCurrentRig[i];
-        if (response[0] == pageToScan) {
-
-            switch ((StompType)response[3]) {
+        // although all stomps have an empty destructor until now, this is just to avoid errors in future
+        stompsInCurrentRig[i]->~StompBase();
+        if (stompType == -1) {
+            // some error. Create an empty stomp to prevent undefined states
+            stompsInCurrentRig[i] = new(memBlock) StompBase (pageToScan, *this);
+            needStompListUpdate = true;
+        }
+        else {
+            switch ((StompType)stompType) {
                 case StompType::WahWah:
                     stompsInCurrentRig[i] = new(memBlock) WahWahStomp (pageToScan, *this);
                     break;
@@ -1215,11 +1222,16 @@ void ProfilingAmp::scanStompSlots() {
                     break;
             }
         }
-        else {
-            midiCommunicationError (responseNotMatchingToRequest);
-            stompsInCurrentRig[i] = new(memBlock) StompBase (pageToScan, *this);
-            needStompListUpdate = true;
-        }
+    }
+}
+
+void ProfilingAmp::initializeStompsInCurrentRig () {
+
+    for (int8_t i = 0; i < 8; i++) {
+        NRPNPage pageToFill = fxSlotNRPNPageMapping[i];
+        // some stack allocation
+        char *memBlock = stompMemoryBlock + (i * sizeof (StompBase));
+        stompsInCurrentRig[i] = new (memBlock) StompBase (pageToFill, *this);
     }
 }
 
@@ -1232,10 +1244,14 @@ ProfilingAmp::StompSlot ProfilingAmp::getSlotOfFirstGenericStompType (StompType 
         scanStompSlots();
     }
 
-    for (int8_t i = 0; i < 0; i++) {
-        if ((stompsInCurrentRig[i]->getStompType() & StompType::GenericMask) == stompTypeToSearchFor) {
+    // scan all stomps in current rig until that generic type was found
+    int8_t i = 0;
+    for (auto &s : stompsInCurrentRig) {
+        StompType maskedType = (StompType)(s->getStompType () & StompType::GenericMask);
+        if (maskedType == stompTypeToSearchFor) {
             return (StompSlot)i;
         }
+        i++;
     }
 
     return StompSlot::Nonexistent;
@@ -1250,10 +1266,14 @@ ProfilingAmp::StompSlot ProfilingAmp::getSlotOfFirstSpecificStompType (StompType
         scanStompSlots();
     }
 
-    for (int8_t i = 0; i < 0; i++) {
-        if ((stompsInCurrentRig[i]->getStompType() & StompType::SpecificMask) == stompTypeToSearchFor) {
+    // scan all stomps in current rig until that specific type was found
+    int8_t i = 0;
+    for (auto &s : stompsInCurrentRig) {
+        StompType maskedType = (StompType)(s->getStompType () & StompType::SpecificMask);
+        if (maskedType == stompTypeToSearchFor) {
             return (StompSlot)i;
         }
+        i++;
     }
 
     return StompSlot::Nonexistent;
@@ -1356,6 +1376,34 @@ void ProfilingAmp::defaultCommunicationErrorCallback (MIDICommunicationErrorCode
 
     std::cerr << std::endl;
 #endif
+}
+
+int16_t ProfilingAmp::getSingleParameter (int8_t pageOrMSB, int8_t parameterOrLSB) {
+    using namespace kpapi::SysEx;
+
+    int8_t response[4];
+
+    // construct and send the request
+    char singleParamRequest[] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::SingleParamValueReq, Instance, (char)pageOrMSB, (char)parameterOrLSB, SysExEnd};
+    sendSysEx (singleParamRequest, Request::SingleParameterRequestLength);
+
+    // wait for a response
+    ResponseMessageManager<int8_t>::ErrorCode ec = parameterResponseManager.waitingForResponseOrTimeout (response, 4);
+
+    // check if the response is matching
+    if ((response[0] == pageOrMSB) && (response[1] == parameterOrLSB)) {
+        // put together lsb and msb
+        return (response[2] << 7) | response[3];
+    }
+
+    // error handling
+    if (ec == ResponseMessageManager<int8_t>::ErrorCode::timeout) {
+        return -1;
+    }
+
+    // if there was no timeout, something went wrong - parameter not matching!!
+    midiCommunicationError (MIDICommunicationErrorCode::responseNotMatchingToRequest);
+    return -1;
 }
 
 void ProfilingAmp::setNewNRPNParameter (NRPNPage newPage, NRPNParameter newParameter) {
