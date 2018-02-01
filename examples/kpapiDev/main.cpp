@@ -17,7 +17,7 @@
 int main(int argc, const char * argv[]) {
  
     
-    std::vector<SimpleMIDI::HardwareResource> connectedDevices = searchMIDIDevices();
+    auto connectedDevices = SimpleMIDI::PlatformSpecificImplementation::searchMIDIDevices();
 
     for (auto &dev : connectedDevices) {
         std::cout << dev.deviceName << std::endl;
@@ -41,7 +41,19 @@ int main(int argc, const char * argv[]) {
     std::this_thread::sleep_for (std::chrono::seconds(2));
 
     wah->toggleOnOff (true);
-    
+
+
+    std::cout << "Amp Name: " << profilingAmp.getActiveAmpName() << std::endl;
+    std::cout << "Amp Manufacturer Name: " << profilingAmp.getActiveAmpManufacturerName() << std::endl;
+    std::cout << "Amp Model Name: " << profilingAmp.getActiveAmpModelName() << std::endl;
+    std::cout << "Cab Name: " << profilingAmp.getActiveCabName() << std::endl;
+    std::cout << "Cab Manufacturer Name: " << profilingAmp.getActiveCabManufacturerName() << std::endl;
+    std::cout << "Cab Model Name: " << profilingAmp.getActiveCabModelName() << std::endl;
+    std::cout << "Rig 2: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig2) << std::endl;
+    std::cout << "Rig 3: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig3) << std::endl;
+    std::cout << "Rig 4: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig4) << std::endl;
+    std::cout << "Rig 5: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig5) << std::endl;
+
     return 0;
 }
 
