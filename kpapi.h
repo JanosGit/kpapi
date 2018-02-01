@@ -628,8 +628,8 @@ private:
          * This is called by the corresponding MIDI handler when a speficic kind of message was received. If no
          * request was sent out before, it returns false and does nothing, otherwise it aquires the mutex to the
          * response target buffer and copies the elements from the source buffer.
-         * @param responseTargetBuffer The buffer provided by the MIDI handler.
-         * @param responseTargetBufferSize The number of elemets to copy to the target buffer (number of array elements, NOT size in Bytes!).
+         * @param responseSourceBuffer The buffer provided by the MIDI handler.
+         * @param responseSourceBufferSize The number of elemets to copy to the target buffer (number of array elements, NOT size in Bytes!).
          * @return false if no thread was waiting for a response, true if the response could have been delivered.
          */
         bool receivedResponse (const T *responseSourceBuffer, int responseSourceBufferSize) {
@@ -902,12 +902,50 @@ private:
         GlobalMonitorVolume = 73
     };
 
+    /** All Kemper specific SysEx communication bytes */
+    enum KemperSysEx : char {
+        ManCode0 = 0x00,
+        ManCode1 = 0x20,
+        ManCode2 = 0x33,
+        PtProfiler = 0x02,
+        DeviceID = 0x7F,
+        Instance = 0x00
+    };
+
+    /** All function codes that are used in SysEx communication */
+    enum FunctionCode : char {
+        SingleParamChange = 0x01,
+        MultiParamChange = 0x02,
+        StringParam = 0x03,
+        Blob = 0x04,
+        ExtendedParamChange = 0x06,
+        ExtendedStringParam = 0x07,
+        SingleParamValueReq = 0x41,
+        MultiParamValueReq = 0x42,
+        StringParamReq = 0x43,
+        ExtendedStringParamReq = 0x47
+    };
+
     /**
      * Sends a a single parameter request sysEx and returns the response as a 14 Bit value.
      * In case of any error it will return -1 - and midiCommunicationError will be called to
      * handle possible midi errors.
      */
     int16_t getSingleParameter (int8_t pageOrMSB, int8_t parameterOrLSB);
+
+    /**
+     * Sends a string parameter request SysEx and returns the repsonse string. In case of any
+     * error, it will return an empty string and midiCommunicationError will be called to
+     * handle possible midi errors.
+     */
+    returnStringType getStringParameter (int8_t MSB, int8_t LSB);
+
+    /**
+     * Sends an extended string parameter request SysEx and returns the repsonse string. In case
+     * of any error, it will return an empty string and midiCommunicationError will be called to
+     * handle possible midi errors.
+     */
+    returnStringType getExtendedStringParameter (uint32_t extendedControllerNumber);
 
     // ========== NRPN handling ===============================
     NRPNPage lastNRPNPage = PageUninitialized;
@@ -1003,516 +1041,5 @@ private:
 
 
 
-void ProfilingAmp::setCommunicationErrorCallback (MidiCommErrorCallbackFn midiCommErrorCallbackFn) {
-    midiCommunicationError = midiCommErrorCallbackFn;
-}
 
-// --------------------------- Tempo -------------------------------
-
-void ProfilingAmp::startExternalMIDIClocking (uint64_t quarterNoteIntervalInMilliseconds) {
-    if (midiClockGenerator == nullptr)
-        midiClockGenerator = new MIDIClockGenerator (*this);
-
-    midiClockGenerator->setIntervall (quarterNoteIntervalInMilliseconds);
-}
-
-void ProfilingAmp::stopExternalMIDIClocking(bool deleteThread) {
-    midiClockGenerator->stop();
-
-    if (deleteThread) {
-        delete midiClockGenerator;
-        midiClockGenerator = nullptr;
-    }
-}
-
-
-#ifdef SIMPLE_MIDI_ARDUINO
-
-void ProfilingAmp::setTempo (uint64_t quarterNoteIntervalInMilliseconds) {
-    quarterNoteIntervalInMilliseconds /= 24; // scaled to midi beat clock intervals
-    quarterNoteIntervalInMilliseconds += millis();
-    sendMIDIClockTick();
-
-    while (quarterNoteIntervalInMilliseconds < millis());
-
-    sendMIDIClockTick();
-}
-
-int16_t ProfilingAmp::tapDown() {
-    sendControlChange (ControlChange::TapTempo, 1);
-
-    unsigned long timeNow = millis();
-    unsigned long timeDiff = timeNow - timePointLastTap;
-    timePointLastTap = timeNow;
-
-    if (timeDiff < 3000)
-        return timeDiff;
-
-    return -1;
-}
-
-#else
-
-void ProfilingAmp::setTempo (uint64_t quarterNoteIntervalInMilliseconds) {
-    quarterNoteIntervalInMilliseconds *= 1000000; // actually nanoseconds now
-    quarterNoteIntervalInMilliseconds /= 24; // scaled to midi beat clock intervals
-    auto timepoint = std::chrono::system_clock::now() + std::chrono::nanoseconds (quarterNoteIntervalInMilliseconds);
-    sendMIDIClockTick();
-    std::this_thread::sleep_until (timepoint);
-    sendMIDIClockTick();
-}
-
-int16_t ProfilingAmp::tapDown() {
-    sendControlChange (ControlChange::TapTempo, 1);
-
-    auto timeNow = std::chrono::system_clock::now();
-    auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds> (timeNow - timePointLastTap);
-    timePointLastTap = timeNow;
-
-    auto timeDiffMs = timeDiff.count();
-
-    if (timeDiffMs < 3000)
-        return timeDiffMs;
-
-    return -1;
-}
-
-#endif
-
-void ProfilingAmp::tapUp() {
-    sendControlChange (ControlChange::TapTempo, 0);
-}
-
-// ------------------- Rigs & Performances ------------------
-
-void ProfilingAmp::selectRig (RigNr rig) {
-    sendControlChange (rig, 1);
-    needStompListUpdate = true;
-}
-
-void ProfilingAmp::preselectPerformance (uint8_t performanceIdx) {
-    sendControlChange (ControlChange ::PerformancePreselect, performanceIdx);
-}
-
-void ProfilingAmp::selectPerformanceAndRig (uint8_t performanceIdx, RigNr rig) {
-    sendControlChange (ControlChange ::PerformancePreselect, performanceIdx);
-    sendControlChange (rig, 1);
-    needStompListUpdate = true;
-}
-
-void ProfilingAmp::selectNextPerformance() {
-    sendControlChange (ControlChange::PerformanceUp, 0);
-    needStompListUpdate = true;
-}
-
-void ProfilingAmp::startScrollingPerformancesUpwards() {
-    sendControlChange (ControlChange::PerformanceUp, 1);
-}
-
-void ProfilingAmp::selectPreviousPerformance() {
-    sendControlChange (ControlChange::PerformanceDown, 0);
-    needStompListUpdate = true;
-}
-
-void ProfilingAmp::startScrollingPerformancesBackwards() {
-    sendControlChange (ControlChange::PerformanceDown, 1);
-}
-
-// -------------------------- Stomps ----------------------------
-
-void ProfilingAmp::toggleStompInSlot (StompSlot stompSlot, bool onOff, bool withReverbTail) {
-    if (withReverbTail) {
-        if ((stompSlot == Dly) || (stompSlot == Rev)) {
-            sendControlChange (stompToggleCC[stompSlot] + 2, onOff);
-        }
-        else {
-            // if it's no delay or reverb slot, switch it anyway
-            sendControlChange (stompToggleCC[stompSlot], onOff);
-        }
-    }
-    else {
-        sendControlChange (stompToggleCC[stompSlot], onOff);
-    }
-}
-
-bool ProfilingAmp::getStompToggleState (StompSlot stompSlot) {
-    return getStompToggleState (stompSlotToNRPNPage (stompSlot));
-}
-
-bool ProfilingAmp::getStompToggleState (NRPNPage stompSlotPage) {
-    return getSingleParameter (stompSlotPage, NRPNParameter::OnOff);
-}
-
-void ProfilingAmp::setWahPedal (uint8_t wahPosition) {
-    sendControlChange (ControlChange::WahPedal, wahPosition);
-}
-
-void ProfilingAmp::setVolumePedal (uint8_t volumePedalPosition) {
-    sendControlChange (ControlChange::VolumePedal, volumePedalPosition);
-}
-
-void ProfilingAmp::setPitchPedal (uint8_t pitchPedalPosition) {
-    sendControlChange (ControlChange::PitchPedal, pitchPedalPosition);
-}
-
-void ProfilingAmp::setMorphPedal (uint8_t morphPedalPosition) {
-    sendControlChange (ControlChange::MorphPedal, morphPedalPosition);
-}
-
-ProfilingAmp::StompType ProfilingAmp::StompBase::getStompType() {
-    return stompType;
-}
-
-void ProfilingAmp::StompBase::toggleOnOff (bool onOff) {
-    _amp.updateLowResNRPN (_slotPage, NRPNParameter::OnOff, onOff);
-}
-
-bool ProfilingAmp::GenericWahStomp::isStillValid() {
-    if (((stompType & StompType::GenericMask) == StompType::GenericWah) && (_slotPage != PageUninitialized)) {
-        return true;
-    }
-    return false;
-}
-
-void ProfilingAmp::GenericWahStomp::setManual (uint16_t manual) {
-    _amp.updateHighResNRPN (_slotPage, WahManual, manual);
-}
-
-ProfilingAmp::GenericWahStomp* ProfilingAmp::getGenericWahStomp (StompSlot stompSlot) {
-    return (GenericWahStomp*) getGenericStompInstance (StompType::GenericWah, stompSlot);
-}
-
-bool ProfilingAmp::WahWahStomp::isStillValid() {
-    if (((stompType & StompType::SpecificMask) == StompType::WahWah) && (_slotPage != PageUninitialized)) {
-        return true;
-    }
-    return false;
-}
-
-ProfilingAmp::WahWahStomp* ProfilingAmp::getWahWahStomp (StompSlot stompSlot) {
-    return (WahWahStomp*) getSpecificStompInstance (StompType::WahWah, stompSlot);
-}
-
-void ProfilingAmp::scanStompSlots() {
-    needStompListUpdate = false;
-
-    // scan all 8 stomp slots
-    for (int8_t i = 0; i < 8; i++) {
-        NRPNPage pageToScan = fxSlotNRPNPageMapping[i];
-        int16_t stompType = (StompType)getSingleParameter (pageToScan, NRPNParameter::StompTypeID);
-
-
-        // if the response was matching the request, allocate a new stomp in that slot
-        char *memBlock = stompMemoryBlock + (i * sizeof (StompBase));
-        // although all stomps have an empty destructor until now, this is just to avoid errors in future
-        stompsInCurrentRig[i]->~StompBase();
-        if (stompType == -1) {
-            // some error. Create an empty stomp to prevent undefined states
-            stompsInCurrentRig[i] = new(memBlock) StompBase (pageToScan, *this);
-            needStompListUpdate = true;
-        }
-        else {
-            switch ((StompType)stompType) {
-                case StompType::WahWah:
-                    stompsInCurrentRig[i] = new(memBlock) WahWahStomp (pageToScan, *this);
-                    break;
-
-                default:
-                    stompsInCurrentRig[i] = new(memBlock) StompBase (pageToScan, *this);
-                    break;
-            }
-        }
-    }
-}
-
-void ProfilingAmp::initializeStompsInCurrentRig () {
-
-    for (int8_t i = 0; i < 8; i++) {
-        NRPNPage pageToFill = fxSlotNRPNPageMapping[i];
-        // some stack allocation
-        char *memBlock = stompMemoryBlock + (i * sizeof (StompBase));
-        stompsInCurrentRig[i] = new (memBlock) StompBase (pageToFill, *this);
-    }
-}
-
-ProfilingAmp::StompSlot ProfilingAmp::getSlotOfFirstGenericStompType (StompType stompTypeToSearchFor) {
-
-    if (stompTypeToSearchFor <= StompType::SpecificMask)
-        return StompSlot::Unknown;
-
-    if (needStompListUpdate) {
-        scanStompSlots();
-    }
-
-    // scan all stomps in current rig until that generic type was found
-    int8_t i = 0;
-    for (auto &s : stompsInCurrentRig) {
-        StompType maskedType = (StompType)(s->getStompType () & StompType::GenericMask);
-        if (maskedType == stompTypeToSearchFor) {
-            return (StompSlot)i;
-        }
-        i++;
-    }
-
-    return StompSlot::Nonexistent;
-}
-
-ProfilingAmp::StompSlot ProfilingAmp::getSlotOfFirstSpecificStompType (StompType stompTypeToSearchFor) {
-
-    if (stompTypeToSearchFor > StompType::SpecificMask)
-        return StompSlot::Unknown;
-
-    if (needStompListUpdate) {
-        scanStompSlots();
-    }
-
-    // scan all stomps in current rig until that specific type was found
-    int8_t i = 0;
-    for (auto &s : stompsInCurrentRig) {
-        StompType maskedType = (StompType)(s->getStompType () & StompType::SpecificMask);
-        if (maskedType == stompTypeToSearchFor) {
-            return (StompSlot)i;
-        }
-        i++;
-    }
-
-    return StompSlot::Nonexistent;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveRigName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveRigName, kpapi::SysEx::Request::ActiveRigNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveAmpName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveAmpName, kpapi::SysEx::Request::ActiveAmpNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveAmpManufacturerName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveAmpManufacturerName, kpapi::SysEx::Request::ActiveAmpManufacturerNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveAmpModelName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveAmpModelName, kpapi::SysEx::Request::ActiveAmpModelNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveCabName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveCabName, kpapi::SysEx::Request::ActiveCabNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveCabManufacturerName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveCabManufacturerName, kpapi::SysEx::Request::ActiveCabManufacturerNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActiveCabModelName () {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActiveCabModelName, kpapi::SysEx::Request::ActiveCabModelNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getActivePerformanceName() {
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    sendSysEx (kpapi::SysEx::Request::ActivePerformanceName, kpapi::SysEx::Request::ActivePerformanceNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-ProfilingAmp::returnStringType ProfilingAmp::getRigName (RigNr rig) {
-    using namespace kpapi::SysEx;
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    char rigControllerLSB = (char)rig - 49;
-
-    char rigNameReq[Request::ExtendedStringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::ExtendedStringParamReq, Instance, 0, 0, 1, 0, rigControllerLSB, SysExEnd};
-
-    sendSysEx (rigNameReq, Request::ExtendedStringRequestLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-}
-
-void ProfilingAmp::defaultCommunicationErrorCallback (MIDICommunicationErrorCode ec) {
-#ifndef SIMPLE_MIDI_ARDUINO
-
-    std::cerr << "kpapi MIDI communication error: ";
-    switch (ec) {
-        case missingActiveSense:
-            std::cerr << "Missing active Sense";
-            break;
-
-        case noResponseBeforeTimeout:
-            std::cerr << "No response before timeout";
-            break;
-
-        case responseNotMatchingToRequest:
-            std::cerr << "The response received was not matching the last request";
-            break;
-    }
-
-    std::cerr << std::endl;
-#endif
-}
-
-int16_t ProfilingAmp::getSingleParameter (int8_t pageOrMSB, int8_t parameterOrLSB) {
-    using namespace kpapi::SysEx;
-
-    int8_t response[4];
-
-    // construct and send the request
-    char singleParamRequest[] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::SingleParamValueReq, Instance, (char)pageOrMSB, (char)parameterOrLSB, SysExEnd};
-    sendSysEx (singleParamRequest, Request::SingleParameterRequestLength);
-
-    // wait for a response
-    ResponseMessageManager<int8_t>::ErrorCode ec = parameterResponseManager.waitingForResponseOrTimeout (response, 4);
-
-    // check if the response is matching
-    if ((response[0] == pageOrMSB) && (response[1] == parameterOrLSB)) {
-        // put together lsb and msb
-        return (response[2] << 7) | response[3];
-    }
-
-    // error handling
-    if (ec == ResponseMessageManager<int8_t>::ErrorCode::timeout) {
-        return -1;
-    }
-
-    // if there was no timeout, something went wrong - parameter not matching!!
-    midiCommunicationError (MIDICommunicationErrorCode::responseNotMatchingToRequest);
-    return -1;
-}
-
-void ProfilingAmp::setNewNRPNParameter (NRPNPage newPage, NRPNParameter newParameter) {
-    sendControlChange (99, newPage);
-    sendControlChange (98, newParameter);
-    lastNRPNPage = newPage;
-    lastNRPNParameter = newParameter;
-}
-
-void ProfilingAmp::updateLowResNRPN (NRPNPage page, NRPNParameter parameter, uint8_t value) {
-if ((page != lastNRPNPage) || (parameter != lastNRPNParameter)) {
-setNewNRPNParameter (page, parameter);
-}
-sendControlChange (NRPNValLowResolution, value);
-}
-
-void ProfilingAmp::updateHighResNRPN (NRPNPage page, NRPNParameter parameter, uint16_t value) {
-    if ((page != lastNRPNPage) || (parameter != lastNRPNParameter)) {
-        setNewNRPNParameter (page, parameter);
-    }
-    sendControlChange (NRPNValMSB, value >> 7);
-    sendControlChange (NRPNValLSB, value & 0x7F);
-}
-
-ProfilingAmp::StompBase* ProfilingAmp::getGenericStompInstance (StompType genericStompType, StompSlot stompSlot) {
-    // check if the list is still up to date and get an update otherwise
-    if (needStompListUpdate) {
-        scanStompSlots ();
-    }
-
-    if (stompSlot == StompSlot::First) {
-        stompSlot = getSlotOfFirstGenericStompType (genericStompType);
-    }
-
-    // check if the slot Index is inside the valid range
-    if ((stompSlot >= StompSlot::A) && (stompSlot <= StompSlot::Rev)) {
-        if ((stompsInCurrentRig[stompSlot]->getStompType() & StompType::GenericMask) == genericStompType) {
-            return stompsInCurrentRig[stompSlot];
-        }
-    }
-
-    return nullptr;
-}
-
-ProfilingAmp::StompBase* ProfilingAmp::getSpecificStompInstance (StompType specificStompType, StompSlot stompSlot) {
-    // check if the list is still up to date and get an update otherwise
-    if (needStompListUpdate) {
-        scanStompSlots ();
-    }
-
-    if (stompSlot == StompSlot::First) {
-        stompSlot = getSlotOfFirstSpecificStompType (specificStompType);
-    }
-
-    // check if the slot Index is inside the valid range
-    if ((stompSlot >= StompSlot::A) && (stompSlot <= StompSlot::Rev)) {
-        if ((stompsInCurrentRig[stompSlot]->getStompType() & StompType::SpecificMask) == specificStompType) {
-            return stompsInCurrentRig[stompSlot];
-        }
-    }
-
-    return nullptr;
-}
-
-void ProfilingAmp::receivedProgramChange (uint8_t programm) {
-    // empty
-}
-
-void ProfilingAmp::receivedControlChange (uint8_t control, uint8_t value) {
-    // empty
-}
-
-void ProfilingAmp::receivedActiveSense () {
-    // empty
-}
-
-void ProfilingAmp::receivedSysEx (const char *sysExBuffer, const uint16_t length) {
-    using namespace kpapi;
-    // is it a kemper amp sending the message?
-    if ((sysExBuffer[1] == SysEx::ManCode0) &&
-            (sysExBuffer[2] == SysEx::ManCode1) &&
-            (sysExBuffer[3] == SysEx::ManCode2)) {
-
-        // sysExBuffer[6] contains the function code
-        switch (sysExBuffer[6]) {
-            case SysEx::FunctionCode::StringParam: {
-                int stringLength = length - 11;
-
-                stringResponseManager.receivedResponse (sysExBuffer + 10, stringLength);
-
-            }
-                break;
-
-            case SysEx::FunctionCode::ExtendedStringParam: {
-                int stringLength = length - 14;
-
-                stringResponseManager.receivedResponse (sysExBuffer + 13, stringLength);
-
-            }
-                break;
-
-            case SysEx::FunctionCode::SingleParamChange: {
-                parameterResponseManager.receivedResponse ((int8_t*)sysExBuffer + 8, 4);
-            }
-        }
-    }
-};
-
-
-constexpr uint8_t ProfilingAmp::stompToggleCC[];
-constexpr ProfilingAmp::NRPNPage ProfilingAmp::fxSlotNRPNPageMapping[];
 #endif /* kpapi_h */
