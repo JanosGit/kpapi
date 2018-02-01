@@ -250,114 +250,56 @@ ProfilingAmp::StompSlot ProfilingAmp::getSlotOfFirstSpecificStompType (StompType
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveRigName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveRigName, kpapi::SysEx::Request::ActiveRigNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-     */
-
-    return getStringParameter (0, 1);
+    constexpr int8_t activeRigNameControllerLSB = 1;
+    return getStringParameter (0, activeRigNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveAmpName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveAmpName, kpapi::SysEx::Request::ActiveAmpNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-     */
-
-    return getStringParameter (0, 16);
+    constexpr int8_t activeAmpNameControllerLSB = 16;
+    return getStringParameter (0, activeAmpNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveAmpManufacturerName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveAmpManufacturerName, kpapi::SysEx::Request::ActiveAmpManufacturerNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-    */
-
-    return getStringParameter (0, 21);
+    constexpr int8_t activeAmpManufacturerNameControllerLSB = 21;
+    return getStringParameter (0, activeAmpManufacturerNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveAmpModelName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveAmpModelName, kpapi::SysEx::Request::ActiveAmpModelNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-    */
-
-    return getStringParameter (0, 24);
+    constexpr int8_t activeAmpModelNameControllerLSB = 24;
+    return getStringParameter (0, activeAmpModelNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveCabName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveCabName, kpapi::SysEx::Request::ActiveCabNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-    */
-
-    return getStringParameter (0, 32);
+    constexpr int8_t activeCabNameControllerLSB = 32;
+    return getStringParameter (0, activeCabNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveCabManufacturerName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveCabManufacturerName, kpapi::SysEx::Request::ActiveCabManufacturerNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-    */
-
-    return getStringParameter (0, 37);
+    constexpr int8_t activeCabManufacturerNameControllerLSB = 37;
+    return getStringParameter (0, activeCabManufacturerNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveCabModelName () {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActiveCabModelName, kpapi::SysEx::Request::ActiveCabModelNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-    */
-
-    return getStringParameter (0, 42);
+    constexpr int8_t activeCabModelNameControllerLSB = 42;
+    return getStringParameter (0, activeCabModelNameControllerLSB);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActivePerformanceName() {
-    /*
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-            sendSysEx (kpapi::SysEx::Request::ActivePerformanceName, kpapi::SysEx::Request::ActivePerformanceNameLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
 
-    return stringBuffer;
-    */
-    return getExtendedStringParameter (16384);
+    constexpr uint32_t activePerformanceNameControllerNumber = 0x4000;
+    return getExtendedStringParameter (activePerformanceNameControllerNumber);
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getRigName (RigNr rig) {
 
-    /*using namespace kpapi::SysEx;
-    KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
-    char rigControllerLSB = (char)rig - 49;
-
-    char rigNameReq[Request::ExtendedStringRequestLength] = {SysExBegin, ManCode0, ManCode1, ManCode2, PtProfiler, DeviceID, FunctionCode::ExtendedStringParamReq, Instance, 0, 0, 1, 0, rigControllerLSB, SysExEnd};
-
-    sendSysEx (rigNameReq, Request::ExtendedStringRequestLength);
-    stringResponseManager.waitingForResponseOrTimeout (stringBuffer, stringBufferLength);
-
-    return stringBuffer;
-    */
-    uint32_t rigNameControllerNumber = rig + 16335;
+    const uint32_t rigNameControllerNumber = rig + 0x3FCF;
     return getExtendedStringParameter (rigNameControllerNumber);
 }
 

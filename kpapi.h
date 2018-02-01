@@ -15,8 +15,6 @@
 #include <chrono>
 #endif
 
-#include "kpapiSysEx.h"
-
 class ProfilingAmp : private SimpleMIDI::PlatformSpecificImplementation {
 
     friend class ReverbStomp;
