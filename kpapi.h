@@ -26,7 +26,7 @@ public:
     //------------------------------- (Platform dependent) typedefs ----------------------------
 
     /* On Arduino, strings are returned as char pointers to a buffer inside the class. According to its single threaded
-     * architecture, It's assumed, that this will have been completely processed before the next call for a string
+     * architecture, it's assumed, that this will have been completely processed before the next call for a string
      * parameter is sent out. On other platforms with multithreading, std::string support is assumed, so the calls will
      * return a std::string that will contain a copy of the string. For that reasons, there is no global string buffer
      * inside the class but a temporary char buffer will be created before returning a string. The macro
