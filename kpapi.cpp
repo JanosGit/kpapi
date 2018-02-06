@@ -249,6 +249,14 @@ ProfilingAmp::StompSlot ProfilingAmp::getSlotOfFirstSpecificStompType (StompType
     return StompSlot::Nonexistent;
 }
 
+void ProfilingAmp::setAmpGain (int16_t gain) {
+    updateHighResNRPN (NRPNPage::Amp, NRPNParameter::AmpGain, gain);
+}
+
+int16_t ProfilingAmp::getAmpGain() {
+    return getSingleParameter (NRPNPage::Amp, NRPNParameter::AmpGain);
+}
+
 ProfilingAmp::returnStringType ProfilingAmp::getActiveRigName () {
 
     constexpr int8_t activeRigNameControllerLSB = 1;
@@ -414,7 +422,7 @@ void ProfilingAmp::updateLowResNRPN (NRPNPage page, NRPNParameter parameter, uin
     sendControlChange (NRPNValLowResolution, value);
 }
 
-void ProfilingAmp::updateHighResNRPN (NRPNPage page, NRPNParameter parameter, uint16_t value) {
+void ProfilingAmp::updateHighResNRPN (NRPNPage page, NRPNParameter parameter, int16_t value) {
     if ((page != lastNRPNPage) || (parameter != lastNRPNParameter)) {
         setNewNRPNParameter (page, parameter);
     }

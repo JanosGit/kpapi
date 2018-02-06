@@ -370,8 +370,11 @@ public:
          */
         virtual bool isStillValid() {return false; };
 
-        /** Activates or deactivates a Stomp */
-        void toggleOnOff (bool onOff);
+        /** Activates or deactivates a Stomp. Pass true for switching it on, false otherwise */
+        void setToggleState (bool onOff);
+
+        /** Returns true if the stomp is currently activated, false otherwise */
+        bool getToggleState();
 
     protected:
         StompBase (NRPNPage slotPage, ProfilingAmp &amp) : _slotPage (slotPage), _amp(amp) {};
@@ -445,6 +448,14 @@ public:
      * was no specific type, it will return StompType::Unknown
      */
     StompSlot getSlotOfFirstSpecificStompType (StompType stompTypeToSearchFor);
+
+    // ------------- Getting and setting amp parameters for the active rig ------
+
+    /** Sets the gain of the Amp in the active Rig. The value should be in the range 0 - 16383. */
+    void setAmpGain (int16_t gain);
+
+    /** Returns the gain of the Amp in the active Rig. The value returned will be in the range 0 - 16383. */
+    int16_t getAmpGain();
 
     // ---------------- Getting string parameters for the active rig ------------
     
@@ -722,45 +733,48 @@ private:
         return StompReverb;
     }
 
+    /**
+     * Contains all possible NRPN parameters and maps them to their parameter number.
+     * Note that a lot of numeric values appear multiple times, as they are the LSBs
+     * to the unique NRPNPage MSB.
+     */
     enum NRPNParameter : int8_t {
         ParameterUninitialized = -1,
-        RigTempo = -2,
-        RigVolume = -3,
-        RigTempoEnable = -4,
-        NoiseGateIntensity = -5,
-        InputCleanSense = -6,
-        InputDistortionSense = -7,
-        AmpOnOff = -8,
-        //AmpGain = -9,
-                AmpDefinition = -10,
-        AmpClarity = -11,
-        AmpPowerSagging = -12,
-        AmpPick = -13,
-        AmpCompressor = -14,
-        AmpTubeShape = -15,
-        AmpTubeBias = -16,
-        AmpDirectMix = -17,
-        EqOnOff = -18,
-        EqBassGain = -19,
-        EqMiddleGain = -20,
-        EqTrebleGain = -21,
-        EqPresenceGain = -22,
-        CabOnOff = -23,
-        CabVolume = -24,
-        CabHighShift = -25,
-        CabLowShift = -26,
-        CabCharacter = -27,
-        CabPureCabinet = -28,
-        StompAType = -29,
-        StompBType = -30,
-        StompCType = -31,
-        StompDType = -32,
-        StompXType = -33,
-        StompDlyType = -34,
-        StompRevType = -35,
 
-        // ======== These numbers can be interpreted as NRPN LSBs directly =======
-                StompTypeID = 0,
+        // Page: Rig
+        RigTempo = 0,
+        RigVolume = 1,
+        RigTempoEnable = 2,
+        //Page: Input
+        NoiseGateIntensity = 3,
+        InputCleanSense = 4,
+        InputDistortionSense = 5,
+        // Page: Amp
+        AmpOnOff = 2,
+        AmpGain = 4,
+        AmpDefinition = 6,
+        AmpClarity = 7,
+        AmpPowerSagging = 8,
+        AmpPick = 9,
+        AmpCompressor = 10,
+        AmpTubeShape = 11,
+        AmpTubeBias = 12,
+        AmpDirectMix = 15,
+        // Page: EQ
+        EqOnOff = 2,
+        EqBassGain = 4,
+        EqMiddleGain = 5,
+        EqTrebleGain = 6,
+        EqPresenceGain = 7,
+        // Page: Cab
+        CabOnOff = 2,
+        CabVolume = 3,
+        CabHighShift = 4,
+        CabLowShift = 5,
+        CabCharacter = 6,
+        CabPureCabinet = 7,
+        // Page: All Stomp... Pages
+        StompTypeID = 0,
         OnOff = 3,
         WahManual = 8,
         WahPeak = 9,
@@ -870,6 +884,10 @@ private:
         DlySmear = 108,
         DlyDucking = 109,
 
+        // Page: SystemGlobal1
+
+        // Page: SystemGlobal2
+
         // ======================================================================
         // to be continued...
     };
@@ -892,11 +910,11 @@ private:
         PerformanceDown = 49, // just as PerformanceUp
 
         // Effect parameters
-                DelayMix = 68,
+        DelayMix = 68,
         DelayFeedback = 69,
         ReverbMix = 70,
         ReverbTime = 71,
-        AmpGain = 72,
+        AmpGainCoarse = 72, // the enumerator AmpGain is already declared in NRPNParamter enum
         GlobalMonitorVolume = 73
     };
 
@@ -966,7 +984,7 @@ private:
      * Checks if the page/parameter pair is the current NRPN value, if not sets it and sends the
      * value afterwards. Send an MSB and LSB
      */
-    void updateHighResNRPN (NRPNPage page, NRPNParameter parameter, uint16_t value);
+    void updateHighResNRPN (NRPNPage page, NRPNParameter parameter, int16_t value);
 
     // ========== Stomp handling ===============================
     // just in case there will be other kemper amps in future with a differnt stomp slot count, make this one variable

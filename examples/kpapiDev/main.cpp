@@ -36,12 +36,19 @@ int main(int argc, const char * argv[]) {
         return 0;
     }
 
-    std::cout << "Rig has a wah wah!" << std::endl;
+    std::cout << "Rig has a wah wah! It's switched " << std::endl;
+
+    std::cout << "Gain is set to " << (float)profilingAmp.getAmpGain() << std::endl;
 
     std::this_thread::sleep_for (std::chrono::seconds(2));
 
-    wah->toggleOnOff (true);
+    wah->setToggleState (true);
 
+    std::cout << "Gain is set to " << (float)profilingAmp.getAmpGain() << std::endl;
+
+    std::cout << "Setting Gain to 10" << std::endl;
+
+    profilingAmp.setAmpGain (10);
 
     std::cout << "Amp Name: " << profilingAmp.getActiveAmpName() << std::endl;
     std::cout << "Amp Manufacturer Name: " << profilingAmp.getActiveAmpManufacturerName() << std::endl;
@@ -49,6 +56,7 @@ int main(int argc, const char * argv[]) {
     std::cout << "Cab Name: " << profilingAmp.getActiveCabName() << std::endl;
     std::cout << "Cab Manufacturer Name: " << profilingAmp.getActiveCabManufacturerName() << std::endl;
     std::cout << "Cab Model Name: " << profilingAmp.getActiveCabModelName() << std::endl;
+    std::cout << "Rig 1: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig1) << std::endl;
     std::cout << "Rig 2: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig2) << std::endl;
     std::cout << "Rig 3: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig3) << std::endl;
     std::cout << "Rig 4: " << profilingAmp.getRigName (ProfilingAmp::RigNr::Rig4) << std::endl;
