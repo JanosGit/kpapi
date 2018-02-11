@@ -33,16 +33,29 @@ int main(int argc, const char * argv[]) {
 
     if (wah == nullptr) {
         std::cout << "No wah wah in current rig!" << std::endl;
-        return 0;
+    }
+    else {
+        std::cout << "Rig has a wah wah! It's switched " << ((wah->getToggleState()) ? "on" : "off" ) << std::endl;
     }
 
-    std::cout << "Rig has a wah wah! It's switched " << std::endl;
 
     std::cout << "Gain is set to " << (float)profilingAmp.getAmpGain() << std::endl;
+    std::cout << "EQ settings: Bass " << (float)profilingAmp.getAmpEQBassGain() << " - Mid "
+                                      << (float)profilingAmp.getAmpEQMidGain() << " - High "
+                                      << (float)profilingAmp.getAmpEQTrebleGain() << " - Presence "
+                                      << (float)profilingAmp.getAmpEQPresenceGain() << std::endl;
+    profilingAmp.setAmpEQBassGain (0);
+    profilingAmp.setAmpEQMidGain (0);
+    profilingAmp.setAmpEQTrebleGain (0);
+    profilingAmp.setAmpEQPresenceGain (0);
+    std::cout << "Set all EQ bands to 0" << std::endl;
 
     std::this_thread::sleep_for (std::chrono::seconds(2));
 
-    wah->setToggleState (true);
+    if (wah != nullptr) {
+        wah->setToggleState (true);
+    }
+
 
     std::cout << "Gain is set to " << (float)profilingAmp.getAmpGain() << std::endl;
 

@@ -257,6 +257,38 @@ int16_t ProfilingAmp::getAmpGain() {
     return getSingleParameter (NRPNPage::Amp, NRPNParameter::AmpGain);
 }
 
+void ProfilingAmp::setAmpEQBassGain (int16_t bassGain) {
+    updateHighResNRPN (NRPNPage::Eq, NRPNParameter::EqBassGain, bassGain);
+}
+
+int16_t ProfilingAmp::getAmpEQBassGain () {
+    return getSingleParameter (NRPNPage::Eq,  NRPNParameter::EqBassGain);
+}
+
+void ProfilingAmp::setAmpEQMidGain (int16_t midGain) {
+    updateHighResNRPN (NRPNPage::Eq, NRPNParameter::EqMiddleGain, midGain);
+}
+
+int16_t ProfilingAmp::getAmpEQMidGain () {
+    return getSingleParameter (NRPNPage::Eq, NRPNParameter::EqMiddleGain);
+}
+
+void ProfilingAmp::setAmpEQTrebleGain (int16_t highGain) {
+    updateHighResNRPN (NRPNPage::Eq, NRPNParameter::EqTrebleGain, highGain);
+}
+
+int16_t ProfilingAmp::getAmpEQTrebleGain () {
+    return getSingleParameter (NRPNPage::Eq, NRPNParameter::EqTrebleGain);
+}
+
+void ProfilingAmp::setAmpEQPresenceGain (int16_t presenceGain) {
+    updateHighResNRPN (NRPNPage::Eq, NRPNParameter::EqPresenceGain, presenceGain);
+}
+
+int16_t ProfilingAmp::getAmpEQPresenceGain () {
+    return getSingleParameter (NRPNPage::Eq, NRPNParameter::EqPresenceGain);
+}
+
 ProfilingAmp::returnStringType ProfilingAmp::getActiveRigName () {
 
     constexpr int8_t activeRigNameControllerLSB = 1;

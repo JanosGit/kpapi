@@ -457,6 +457,30 @@ public:
     /** Returns the gain of the Amp in the active Rig. The value returned will be in the range 0 - 16383. */
     int16_t getAmpGain();
 
+    /** Sets the EQ's bass gain of the Amp in the active Rig. The value should be in the range 0 - 16383. */
+    void setAmpEQBassGain (int16_t bassGain);
+
+    /** Returns the EQ's bass gain of the Amp in the active Rig. The value returned will be in the range 0 - 16383. */
+    int16_t getAmpEQBassGain();
+
+    /** Sets the EQ's mid gain of the Amp in the active Rig. The value should be in the range 0 - 16383. */
+    void setAmpEQMidGain (int16_t midGain);
+
+    /** Returns the EQ's mid gain of the Amp in the active Rig. The value returned will be in the range 0 - 16383. */
+    int16_t getAmpEQMidGain();
+
+    /** Sets the EQ's high gain of the Amp in the active Rig. The value should be in the range 0 - 16383. */
+    void setAmpEQTrebleGain (int16_t highGain);
+
+    /** Returns the EQ's high gain of the Amp in the active Rig. The value returned will be in the range 0 - 16383. */
+    int16_t getAmpEQTrebleGain();
+
+    /** Sets the EQ's presence gain of the Amp in the active Rig. The value should be in the range 0 - 16383. */
+    void setAmpEQPresenceGain (int16_t presenceGain);
+
+    /** Returns the EQ's presence gain of the Amp in the active Rig. The value returned will be in the range 0 - 16383. */
+    int16_t getAmpEQPresenceGain();
+
     // ---------------- Getting string parameters for the active rig ------------
     
     /** Returns the name of the currently active rig */
