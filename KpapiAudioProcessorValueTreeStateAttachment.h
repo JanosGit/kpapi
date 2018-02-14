@@ -1,7 +1,7 @@
 #pragma once
 
 #include <functional>
-#include "../JuceLibraryCode/JuceHeader.h"
+#include "../../JuceLibraryCode/JuceHeader.h"
 
 class KpapiAudioProcessorValueTreeStateAttachment : public AudioProcessorValueTreeState::Listener {
 
@@ -47,12 +47,10 @@ public:
 
 private:
     AudioProcessorValueTreeState &t;
-    static const NormalisableRange<float> range
+    static const NormalisableRange<float> range;
 
     const String paramID;
 
     std::function<void(int16_t)> changeCallback;
     std::atomic<bool> updating;
 };
-
-NormalisableRange<float> KpapiAudioProcessorValueTreeStateAttachment::range (0.0f, 16383.0f);

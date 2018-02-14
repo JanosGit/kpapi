@@ -21,7 +21,7 @@
 * an AudioProcessorValueTreeState. The JUCE framework is needed for that
 */
 #include "KpapiAudioProcessorValueTreeStateAttachment.h"
-#include "../JuceLibraryCode/JuceHeader.h"
+#include "../../JuceLibraryCode/JuceHeader.h"
 #else
 /**
  * For all other use-cases, this dummy class will act as placeholder
@@ -198,16 +198,16 @@ public:
      * object used for MIDI I/O. Pass a AudioProcessorValueTreeState to manage all amp parameters.
      * Take a look at the SimpleMIDI methods for creating the HardwareResource Object.
      */
-    ProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource, AudioProcessorValueTreeState t)
+    ProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource, AudioProcessorValueTreeState &t)
                                                                          : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
                                                                            stringResponseManager (*this),
-                                                                           parameterResponseManager (*this)
+                                                                           parameterResponseManager (*this),
                                                                            tree (t) {
         setupValueTree();
         timePointLastTap = std::chrono::system_clock::now();
         initializeStompsInCurrentRig();
     };
-#endif
+#else
     /**
      * All except Arduino. Creates a ProfilingAmp based on any SimpleMIDI::HardwareResource
      * object used for MIDI I/O. Take a look at the SimpleMIDI methods for creating the
@@ -219,6 +219,7 @@ public:
         timePointLastTap = std::chrono::system_clock::now();
         initializeStompsInCurrentRig();
     };
+#endif
 #endif
 
 #ifdef SIMPLE_MIDI_MULTITHREADED
