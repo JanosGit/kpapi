@@ -254,7 +254,11 @@ void ProfilingAmp::setAmpGain (int16_t gain) {
 }
 
 int16_t ProfilingAmp::getAmpGain() {
-    return getSingleParameter (NRPNPage::Amp, NRPNParameter::AmpGain);
+    int16_t ampGain = getSingleParameter (NRPNPage::Amp, NRPNParameter::AmpGain);
+#ifdef KPAPI_JUCE_PARAMETERS
+    attachments[TreeParameters::ampGain]->setParameterValue (ampGain);
+#endif
+    return ampGain;
 }
 
 void ProfilingAmp::setAmpEQBassGain (int16_t bassGain) {
