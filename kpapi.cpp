@@ -255,9 +255,6 @@ void ProfilingAmp::setAmpGain (int16_t gain) {
 
 int16_t ProfilingAmp::getAmpGain() {
     int16_t ampGain = getSingleParameter (NRPNPage::Amp, NRPNParameter::AmpGain);
-#ifdef KPAPI_JUCE_PARAMETERS
-    attachments[TreeParameters::ampGain]->setParameterValue (ampGain);
-#endif
     return ampGain;
 }
 
@@ -266,7 +263,8 @@ void ProfilingAmp::setAmpEQBassGain (int16_t bassGain) {
 }
 
 int16_t ProfilingAmp::getAmpEQBassGain () {
-    return getSingleParameter (NRPNPage::Eq,  NRPNParameter::EqBassGain);
+    int16_t bassGain = getSingleParameter (NRPNPage::Eq,  NRPNParameter::EqBassGain);
+    return bassGain;
 }
 
 void ProfilingAmp::setAmpEQMidGain (int16_t midGain) {
@@ -274,7 +272,8 @@ void ProfilingAmp::setAmpEQMidGain (int16_t midGain) {
 }
 
 int16_t ProfilingAmp::getAmpEQMidGain () {
-    return getSingleParameter (NRPNPage::Eq, NRPNParameter::EqMiddleGain);
+    int16_t midGain = getSingleParameter (NRPNPage::Eq, NRPNParameter::EqMiddleGain);
+    return midGain;
 }
 
 void ProfilingAmp::setAmpEQTrebleGain (int16_t highGain) {
@@ -282,7 +281,8 @@ void ProfilingAmp::setAmpEQTrebleGain (int16_t highGain) {
 }
 
 int16_t ProfilingAmp::getAmpEQTrebleGain () {
-    return getSingleParameter (NRPNPage::Eq, NRPNParameter::EqTrebleGain);
+    int16_t trebleGain = getSingleParameter (NRPNPage::Eq, NRPNParameter::EqTrebleGain);
+    return trebleGain;
 }
 
 void ProfilingAmp::setAmpEQPresenceGain (int16_t presenceGain) {
@@ -290,7 +290,8 @@ void ProfilingAmp::setAmpEQPresenceGain (int16_t presenceGain) {
 }
 
 int16_t ProfilingAmp::getAmpEQPresenceGain () {
-    return getSingleParameter (NRPNPage::Eq, NRPNParameter::EqPresenceGain);
+    int16_t presenceGain = getSingleParameter (NRPNPage::Eq, NRPNParameter::EqPresenceGain);
+    return presenceGain;
 }
 
 ProfilingAmp::returnStringType ProfilingAmp::getActiveRigName () {
@@ -350,22 +351,22 @@ ProfilingAmp::returnStringType ProfilingAmp::getRigName (RigNr rig) {
 void ProfilingAmp::defaultCommunicationErrorCallback (MIDICommunicationErrorCode ec) {
 #ifndef SIMPLE_MIDI_ARDUINO
 
-    std::cerr << "kpapi MIDI communication error: ";
+    returnStringType errorMsg ("kpapi MIDI communication error: ");
     switch (ec) {
         case missingActiveSense:
-            std::cerr << "Missing active Sense";
+            errorMsg += "Missing active Sense";
             break;
 
         case noResponseBeforeTimeout:
-            std::cerr << "No response before timeout";
+            errorMsg += "No response before timeout";
             break;
 
         case responseNotMatchingToRequest:
-            std::cerr << "The response received was not matching the last request";
+            errorMsg += "The response received was not matching the last request";
             break;
     }
 
-    std::cerr << std::endl;
+    Logger::writeToLog (errorMsg);
 #endif
 }
 

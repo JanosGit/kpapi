@@ -8,6 +8,7 @@
 #ifndef kpapi_h
 #define kpapi_h
 
+
 #include "simpleMIDI/simpleMIDI.h"
 
 #ifndef SIMPLE_MIDI_ARDUINO
@@ -15,24 +16,17 @@
 #include <chrono>
 #endif
 
-#ifdef KPAPI_JUCE_PARAMETERS
 /**
-* To use this class within a JUCE-based audio Plugin, it's possible to add all parameters of the amp to
-* an AudioProcessorValueTreeState. The JUCE framework is needed for that
-*/
-#include "KpapiAudioProcessorValueTreeStateAttachment.h"
-#include "../../JuceLibraryCode/JuceHeader.h"
-#else
-/**
- * For all other use-cases, this dummy class will act as placeholder
+ * To use this class within a JUCE-based application, it's nice to return all strings as juce::String
+ * types. The JUCE framework is needed for that
  */
-class AudioProcessorValueTreeState {
-
-};
-
+#ifdef KPAPI_JUCE_STRINGS
+#include "../../JuceLibraryCode/JuceHeader.h"
 #endif
 
-class ProfilingAmp : private SimpleMIDI::PlatformSpecificImplementation {
+class ProfilingAmp : private SimpleMIDI::PlatformSpecificImplementation
+
+{
 
     friend class ReverbStomp;
     friend class WahStomp;
@@ -47,17 +41,24 @@ public:
      * parameter is sent out. On other platforms with multithreading, std::string support is assumed, so the calls will
      * return a std::string that will contain a copy of the string. For that reasons, there is no global string buffer
      * inside the class but a temporary char buffer will be created before returning a string. The macro
-     * KPAPI_TEMP_STRING_BUFFER_IF_NEEDED manages this. If the amp is attached to a JUCE AudioProcessorValueTreeState,
-     * the usage of the JUCE framework is assumed, so juce::String is used in this case.
+     * KPAPI_TEMP_STRING_BUFFER_IF_NEEDED manages this.
      * */
 #ifdef SIMPLE_MIDI_ARDUINO
     typedef const char* returnStringType;
 #define KPAPI_TEMP_STRING_BUFFER_IF_NEEDED
 #else
-    #ifdef KPAPI_JUCE_PARAMETERS
+    #ifdef KPAPI_JUCE_STRINGS
         typedef juce::String returnStringType;
     #else
         typedef std::string returnStringType;
+        // the logger class is present in JUCE applications to output log messages. This is used to output default warnings to
+        // stderr for all other applications
+        class Logger {
+            public:
+            static void writeToLog (std::string &msg) {
+                std::cerr << msg << std::endl;
+            }
+        };
     #endif
 #define KPAPI_TEMP_STRING_BUFFER_IF_NEEDED char stringBuffer[stringBufferLength];
 #endif
@@ -192,22 +193,7 @@ public:
     }
 #else
 
-#ifdef KPAPI_JUCE_PARAMETERS
-    /**
-     * When used in a JUCE Plugin, Creates a ProfilingAmp based on any SimpleMIDI::HardwareResource
-     * object used for MIDI I/O. Pass a AudioProcessorValueTreeState to manage all amp parameters.
-     * Take a look at the SimpleMIDI methods for creating the HardwareResource Object.
-     */
-    ProfilingAmp (SimpleMIDI::HardwareResource &hardwareRessource, AudioProcessorValueTreeState &t)
-                                                                         : SimpleMIDI::PlatformSpecificImplementation (hardwareRessource),
-                                                                           stringResponseManager (*this),
-                                                                           parameterResponseManager (*this),
-                                                                           tree (t) {
-        setupValueTree();
-        timePointLastTap = std::chrono::system_clock::now();
-        initializeStompsInCurrentRig();
-    };
-#else
+
     /**
      * All except Arduino. Creates a ProfilingAmp based on any SimpleMIDI::HardwareResource
      * object used for MIDI I/O. Take a look at the SimpleMIDI methods for creating the
@@ -219,7 +205,7 @@ public:
         timePointLastTap = std::chrono::system_clock::now();
         initializeStompsInCurrentRig();
     };
-#endif
+    
 #endif
 
 #ifdef SIMPLE_MIDI_MULTITHREADED
@@ -1097,47 +1083,7 @@ private:
     
     void receivedSysEx (const char *sysExBuffer, const uint16_t length) override;
 
-// ======== Managing the AudioProcessorValueTreeState ========================
-#ifdef KPAPI_JUCE_PARAMETERS
-
-    void setupValueTree();
-    AudioProcessorValueTreeState &tree;
-    OwnedArray<KpapiAudioProcessorValueTreeStateAttachment> attachments;
-
-    /** Maps the listeners to the parameters */
-    enum TreeParameters {
-        ampGain,
-        ampEQBassGain,
-        ampEQMidGain,
-        ampEQTrebleGain,
-        ampEQPresenceGain,
-
-        numParameters
-    };
-#endif
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #endif /* kpapi_h */
